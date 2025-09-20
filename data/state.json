@@ -1,0 +1,68 @@
+{
+  "league_settings": {
+    "team_budget": 200,
+    "min_bid_increment": 1,
+    "max_players_per_team": 10,
+    "league_name": "NBA Fantasy League",
+    "total_teams": 10
+  },
+  "teams": {
+    "Team A": {
+      "name": "Team A",
+      "budget_left": 200,
+      "players": []
+    },
+    "Team B": {
+      "name": "Team B",
+      "budget_left": 200,
+      "players": []
+    },
+    "Team C": {
+      "name": "Team C",
+      "budget_left": 200,
+      "players": []
+    },
+    "Team D": {
+      "name": "Team D",
+      "budget_left": 200,
+      "players": []
+    },
+    "Team E": {
+      "name": "Team E",
+      "budget_left": 200,
+      "players": []
+    },
+    "Team F": {
+      "name": "Team F",
+      "budget_left": 200,
+      "players": []
+    },
+    "Team G": {
+      "name": "Team G",
+      "budget_left": 200,
+      "players": []
+    },
+    "Team H": {
+      "name": "Team H",
+      "budget_left": 200,
+      "players": []
+    },
+    "Team I": {
+      "name": "Team I",
+      "budget_left": 200,
+      "players": []
+    },
+    "Team J": {
+      "name": "Team J",
+      "budget_left": 200,
+      "players": []
+    }
+  },
+  "auction_state": {
+    "current_player": null,
+    "highest_bid": 0,
+    "highest_bidder": "",
+    "is_active": false
+  },
+  "last_updated": "2025-09-09T14:29:37.140380"
+}
