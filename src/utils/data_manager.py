@@ -85,10 +85,14 @@ class DataManager:
         """설정된 팀 수만큼 팀을 초기화합니다."""
         if budget_per_team is None:
             budget_per_team = self.league_settings.team_budget
-            
+
+        # 실제 팀 이름들
+        team_names = ["준희", "정명", "단열", "경찬", "병욱", "원준",
+                     "윤범", "진빈", "지원", "두현", "수현", "철웅"]
+
         teams = {}
-        for i in range(1, self.league_settings.total_teams + 1):
-            team_name = f"Team {chr(64 + i)}"  # Team A, Team B, ..., Team L
+        for i in range(self.league_settings.total_teams):
+            team_name = team_names[i] if i < len(team_names) else f"Team {i+1}"
             teams[team_name] = Team(
                 name=team_name,
                 budget_left=budget_per_team,

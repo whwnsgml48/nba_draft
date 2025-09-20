@@ -287,44 +287,9 @@ def team_overview_dashboard():
         st.dataframe(df_overview, width='stretch', hide_index=True, height=400)
 
 def roster_board_section():
-    """상세 로스터 보드 섹션"""
-    with st.expander("📋 상세 로스터 보기", expanded=False):
-        st.markdown("### 팀별 상세 선수 목록")
-
+    """팀별 통계 요약 섹션"""
+    with st.expander("📊 팀별 통계 요약", expanded=False):
         team_summary = st.session_state.data_manager.get_team_summary()
-
-        # 모든 팀의 데이터를 하나의 테이블로 구성 (선수 컬럼 10개 고정)
-        team_roster_data = []
-        max_display_players = 10  # 표시할 최대 선수 수를 10명으로 고정
-
-        for team_name, team_data in team_summary.items():
-            row_data = {
-                '팀명': team_name,
-                '남은 예산': f"${team_data['budget_left']}",
-                '선수 수': f"{team_data['player_count']}/15"
-            }
-
-            # 각 선수를 별도 컬럼으로 추가 (최대 10명까지)
-            for i, player in enumerate(team_data['players'][:max_display_players]):
-                player_info = f"{player['name']} ({player['position']}) ${player['price']}"
-                row_data[f'선수{i+1}'] = player_info
-
-            # 빈 선수 슬롯은 빈 문자열로 채움 (항상 10개 컬럼 유지)
-            for i in range(len(team_data['players']), max_display_players):
-                row_data[f'선수{i+1}'] = ""
-
-            team_roster_data.append(row_data)
-
-        if team_roster_data:
-            df_roster = pd.DataFrame(team_roster_data)
-            st.dataframe(df_roster, width='stretch', hide_index=True)
-        else:
-            st.info("팀 정보를 불러올 수 없습니다.")
-
-        st.divider()
-
-        # 팀 요약 테이블
-        st.markdown("#### 팀별 통계 요약")
 
         team_summary_data = []
         for team_name, team_data in team_summary.items():
@@ -345,6 +310,8 @@ def roster_board_section():
         if team_summary_data:
             df_summary = pd.DataFrame(team_summary_data)
             st.dataframe(df_summary, width='stretch', hide_index=True)
+        else:
+            st.info("팀 정보를 불러올 수 없습니다.")
 
 def main():
     """메인 앱"""
@@ -437,7 +404,7 @@ def main():
 
     if team_roster_data:
         df_roster = pd.DataFrame(team_roster_data)
-        st.dataframe(df_roster, width='stretch', hide_index=True)
+        st.dataframe(df_roster, width='stretch', hide_index=True, height=460)
     else:
         st.info("팀 정보를 불러올 수 없습니다.")
 
