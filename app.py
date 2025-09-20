@@ -64,7 +64,7 @@ def display_current_auction():
             }
             
             df_player = pd.DataFrame(player_data)
-            st.dataframe(df_player, width='stretch', hide_index=True, height=300)
+            st.dataframe(df_player, width='stretch', hide_index=True, height=320)
         
         # 입찰 히스토리
         bid_history = st.session_state.auction_manager.get_bid_history()
@@ -360,13 +360,32 @@ def main():
 
         st.markdown("## 💾 내보내기")
 
-        # CSV 내보내기
-        if st.button("📥 드래프트 결과 내보내기", use_container_width=True):
-            filepath = st.session_state.data_manager.export_draft_results()
-            if filepath:
-                st.success(f"결과가 {filepath}에 저장되었습니다.")
-            else:
-                st.error("내보내기에 실패했습니다.")
+        # CSV 내보내기 (바로 다운로드)
+        df = st.session_state.data_manager.load_players()
+        if not df.empty:
+            # 드래프트 결과 데이터 준비
+            export_df = df[['name', 'team', 'position', 'draft_status',
+                          'draft_price', 'draft_team', 'points', 'rebounds',
+                          'assists', 'steals', 'blocks', 'fantasy_rank']].copy()
+
+            # CSV 문자열로 변환
+            csv_data = export_df.to_csv(index=False, encoding='utf-8')
+
+            # 파일명 생성
+            from datetime import datetime
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"draft_results_{timestamp}.csv"
+
+            # 다운로드 버튼
+            st.download_button(
+                label="📥 드래프트 결과 다운로드",
+                data=csv_data,
+                file_name=filename,
+                mime="text/csv",
+                use_container_width=True
+            )
+        else:
+            st.warning("드래프트 데이터가 없습니다.")
     
     # 메인 컨텐츠
 
