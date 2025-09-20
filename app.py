@@ -183,17 +183,32 @@ def auction_control_section():
             budget_left = st.session_state.data_manager.teams[selected_team].budget_left
             st.caption(f"남은 예산: ${budget_left}")
 
-        # 입찰가 선택
+        # 빠른 입찰가 버튼들
         suggested_bids = st.session_state.auction_manager.get_suggested_bids()
-        if suggested_bids:
-            selected_bid = st.selectbox("입찰가", suggested_bids, key="sidebar_bid_select")
-        else:
-            selected_bid = st.number_input(
-                "입찰가",
-                min_value=auction_info['next_min_bid'],
-                value=auction_info['next_min_bid'],
-                key="sidebar_bid_input"
-            )
+        if suggested_bids and len(suggested_bids) > 1:
+            st.caption("빠른 입찰:")
+            cols = st.columns(min(len(suggested_bids), 4))
+            for i, bid in enumerate(suggested_bids[:4]):
+                with cols[i]:
+                    if st.button(f"${bid}", key=f"quick_bid_{bid}", use_container_width=True):
+                        st.session_state.quick_bid_selected = bid
+                        st.rerun()
+
+        # 입찰가 입력 (수기 입력)
+        # 빠른 입찰 버튼이 눌렸을 때 해당 값으로 초기화
+        initial_value = auction_info['next_min_bid']
+        if hasattr(st.session_state, 'quick_bid_selected'):
+            initial_value = st.session_state.quick_bid_selected
+            del st.session_state.quick_bid_selected
+
+        selected_bid = st.number_input(
+            "입찰가 ($)",
+            min_value=auction_info['next_min_bid'],
+            value=initial_value,
+            step=1,
+            key="sidebar_bid_input",
+            help=f"최소 입찰가: ${auction_info['next_min_bid']}"
+        )
 
         # 버튼들 (전체 폭 사용)
         if st.button("💰 입찰하기", type="primary", use_container_width=True, key="sidebar_bid_btn"):
