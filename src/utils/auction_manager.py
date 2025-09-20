@@ -1,7 +1,7 @@
 from typing import Dict, List, Optional, Tuple
 import pandas as pd
 from dataclasses import dataclass
-from utils.data_manager import DataManager, Player
+from .data_manager import DataManager, Player
 
 @dataclass
 class BidHistory:
@@ -137,7 +137,7 @@ class AuctionManager:
             return False
         
         # 경매 상태 초기화
-        from utils.data_manager import AuctionState
+        from .data_manager import AuctionState
         self.data_manager.auction_state = AuctionState()
         self.data_manager.save_state()
         self.bid_history = []

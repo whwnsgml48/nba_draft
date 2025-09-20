@@ -6,9 +6,9 @@ import os
 # 프로젝트 루트 디렉토리를 Python 경로에 추가
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from utils.data_manager import DataManager
-from utils.auction_manager import AuctionManager
-from utils.nba_data import NBADataCollector
+from src.utils.data_manager import DataManager
+from src.utils.auction_manager import AuctionManager
+from src.utils.nba_data import NBADataCollector
 
 # 페이지 설정
 st.set_page_config(
