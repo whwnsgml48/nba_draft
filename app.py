@@ -43,28 +43,24 @@ def display_current_auction():
         with col3:
             st.metric("다음 최소가", f"${auction_info['next_min_bid']}")
         
-        # 선수 정보 표
+        # 선수 정보 (컴팩트)
         player_info = st.session_state.auction_manager.get_player_info(auction_info['current_player'])
         if player_info:
-            st.markdown("### 선수 정보")
-            
-            # 선수 정보를 표 형태로 표시
-            player_data = {
-                '항목': ['팀', '포지션', '득점', '리바운드', '어시스트', '스틸', '블록', '판타지 순위'],
-                '값': [
-                    player_info['team'],
-                    player_info['position'],
-                    f"{player_info['points']:.1f}",
-                    f"{player_info['rebounds']:.1f}",
-                    f"{player_info['assists']:.1f}",
-                    f"{player_info['steals']:.1f}",
-                    f"{player_info['blocks']:.1f}",
-                    f"#{player_info['fantasy_rank']}"
-                ]
-            }
-            
-            df_player = pd.DataFrame(player_data)
-            st.dataframe(df_player, width='stretch', hide_index=True, height=320)
+            # 선수 기본 정보 (한 줄)
+            st.markdown(f"**{player_info['name']}** | {player_info['team']} {player_info['position']} | 순위 #{player_info['fantasy_rank']}")
+
+            # 스탯 (한 줄에 5개)
+            col1, col2, col3, col4, col5 = st.columns(5)
+            with col1:
+                st.metric("득점", f"{player_info['points']:.1f}")
+            with col2:
+                st.metric("리바운드", f"{player_info['rebounds']:.1f}")
+            with col3:
+                st.metric("어시스트", f"{player_info['assists']:.1f}")
+            with col4:
+                st.metric("스틸", f"{player_info['steals']:.1f}")
+            with col5:
+                st.metric("블록", f"{player_info['blocks']:.1f}")
         
         # 입찰 히스토리
         bid_history = st.session_state.auction_manager.get_bid_history()
