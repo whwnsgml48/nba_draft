@@ -5,6 +5,13 @@ import json
 from typing import Dict, List, Optional
 from .basketball_reference import BasketballReferenceCollector
 
+try:
+    from nba_api.stats.endpoints import commonallplayers
+    NBA_API_AVAILABLE = True
+except ImportError:
+    NBA_API_AVAILABLE = False
+    print("NBA API가 설치되지 않았습니다. Basketball Reference만 사용합니다.")
+
 class NBADataCollector:
     def __init__(self):
         self.season = '2024-25'
@@ -12,18 +19,21 @@ class NBADataCollector:
         
     def get_all_active_players(self) -> pd.DataFrame:
         """2024-25 시즌 활성 선수 목록을 가져옵니다."""
+        if not NBA_API_AVAILABLE:
+            raise Exception("NBA API를 사용할 수 없습니다. nba-api 패키지를 설치하세요.")
+
         try:
             print("NBA API에서 선수 목록을 가져오는 중...")
-            
+
             # 먼저 현재 시즌으로 시도
             all_players = commonallplayers.CommonAllPlayers(
                 season=self.season,
                 is_only_current_season=1,
                 timeout=30
             )
-            
+
             df = all_players.get_data_frames()[0]
-            
+
             if df.empty:
                 print("현재 시즌 데이터가 비어있음. 모든 시즌 데이터로 시도...")
                 # 현재 시즌이 비어있으면 모든 시즌 데이터 가져오기
@@ -33,10 +43,10 @@ class NBADataCollector:
                     timeout=30
                 )
                 df = all_players.get_data_frames()[0]
-            
+
             if df.empty:
                 raise Exception("NBA API에서 선수 데이터를 가져올 수 없습니다.")
-            
+
             print(f"API에서 {len(df)}명의 선수 데이터 수신")
             
             # 필요한 컬럼만 선택
@@ -170,35 +180,55 @@ class NBADataCollector:
     
     def create_players_dataset(self) -> pd.DataFrame:
         """Basketball Reference에서 2024-25 시즌 선수 데이터를 수집합니다."""
-        
+
         print("=== Basketball Reference에서 NBA 선수 데이터 수집 시작 ===")
-        
+
         try:
             # Basketball Reference 수집기 사용
             br_collector = BasketballReferenceCollector()
             df = br_collector.get_season_stats()
-            
+
             if df.empty:
-                raise Exception("Basketball Reference에서 데이터를 가져올 수 없습니다.")
-            
+                # 더 구체적인 에러 메시지
+                error_messages = [
+                    "Basketball Reference에서 데이터를 가져올 수 없습니다.",
+                    "가능한 원인:",
+                    "1. 2024-25 시즌이 아직 시작되지 않았을 수 있습니다.",
+                    "2. Basketball Reference 웹사이트 접근에 문제가 있을 수 있습니다.",
+                    "3. 네트워크 연결을 확인하세요.",
+                    "4. 잠시 후 다시 시도해보세요."
+                ]
+                raise Exception("\n".join(error_messages))
+
             print(f"\n=== Basketball Reference 수집 완료 ===")
             print(f"총 선수: {len(df)}명")
-            print(f"평균 게임 수: {df['games_played'].mean():.1f}")
-            print(f"평균 출전 시간: {df['minutes_per_game'].mean():.1f}분")
-            
-            # 상위 10명 확인
-            print(f"\n상위 10명 선수:")
-            top10 = df.head(10)[['name', 'team', 'games_played', 'minutes_per_game', 'points', 'fantasy_value', 'fantasy_rank']]
-            for _, player in top10.iterrows():
-                print(f"{player['fantasy_rank']:2d}. {player['name']:<20} ({player['team']}) - "
-                      f"{player['games_played']:2.0f}G, {player['minutes_per_game']:4.1f}min, "
-                      f"{player['points']:4.1f}pts, FV:{player['fantasy_value']:5.1f}")
-            
+
+            # 안전한 평균 계산
+            if 'games_played' in df.columns and not df['games_played'].empty:
+                print(f"평균 게임 수: {df['games_played'].mean():.1f}")
+            if 'minutes_per_game' in df.columns and not df['minutes_per_game'].empty:
+                print(f"평균 출전 시간: {df['minutes_per_game'].mean():.1f}분")
+
+            # 상위 10명 확인 (안전하게)
+            if len(df) >= 10:
+                print(f"\n상위 10명 선수:")
+                required_cols = ['name', 'team', 'games_played', 'minutes_per_game', 'points', 'fantasy_value', 'fantasy_rank']
+                available_cols = [col for col in required_cols if col in df.columns]
+
+                if available_cols:
+                    top10 = df.head(10)[available_cols]
+                    for idx, (_, player) in enumerate(top10.iterrows()):
+                        name = player.get('name', 'Unknown')
+                        team = player.get('team', 'UNK')
+                        rank = player.get('fantasy_rank', idx + 1)
+                        print(f"{rank:2d}. {name:<20} ({team})")
+
             return df
-            
+
         except Exception as e:
-            print(f"Basketball Reference 데이터 수집 중 오류: {e}")
-            raise e
+            error_msg = f"Basketball Reference 데이터 수집 중 오류: {str(e)}"
+            print(error_msg)
+            raise Exception(error_msg)
     
     
     def save_players_data(self, df: pd.DataFrame, filepath: str = "data/players.csv"):

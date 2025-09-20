@@ -14,6 +14,7 @@ except ImportError:
 class BasketballReferenceCollector:
     def __init__(self):
         self.season_year = '2025'  # 2024-25 시즌
+        self.fallback_season_year = '2024'  # 2023-24 시즌 (폴백)
         self.base_url = 'https://www.basketball-reference.com'
         self.session = requests.Session()
         self.session.headers.update({
@@ -23,45 +24,60 @@ class BasketballReferenceCollector:
     def get_season_stats(self) -> pd.DataFrame:
         """Basketball Reference에서 2024-25 시즌 선수 스탯을 가져옵니다."""
         print("Basketball Reference에서 최신 선수 데이터를 수집하는 중...")
-        
+
+        # 먼저 현재 시즌으로 시도
+        df = self._fetch_season_data(self.season_year)
+
+        # 현재 시즌 데이터가 없으면 이전 시즌으로 폴백
+        if df.empty:
+            print(f"2024-25 시즌 데이터를 사용할 수 없습니다. 2023-24 시즌 데이터로 폴백합니다.")
+            df = self._fetch_season_data(self.fallback_season_year)
+
+        if df.empty:
+            raise Exception("Basketball Reference에서 데이터를 가져올 수 없습니다.")
+
+        return df
+
+    def _fetch_season_data(self, season_year: str) -> pd.DataFrame:
+        """특정 시즌의 데이터를 가져옵니다."""
         try:
-            # Per game stats 페이지 (가장 최신 데이터)
-            url = f"{self.base_url}/leagues/NBA_{self.season_year}_per_game.html"
-            print(f"URL: {url}")
-            
+            # Per game stats 페이지
+            url = f"{self.base_url}/leagues/NBA_{season_year}_per_game.html"
+            print(f"시도 중인 URL: {url}")
+
             response = self.session.get(url, timeout=30)
             response.raise_for_status()
-            
-            # pandas로 테이블 읽기 (헤더 없이)
+
+            # pandas로 테이블 읽기
             tables = pd.read_html(response.content, header=0)
             df = tables[0]  # 첫 번째 테이블이 선수 스탯
-            
+
             # 컬럼 이름을 수동으로 설정 (Basketball Reference 표준 순서)
             expected_columns = [
-                'Rank', 'Player', 'Age', 'Tm', 'Pos', 'G', 'GS', 'MP', 'FG', 'FGA', 'FG%', 
+                'Rank', 'Player', 'Age', 'Tm', 'Pos', 'G', 'GS', 'MP', 'FG', 'FGA', 'FG%',
                 '3P', '3PA', '3P%', '2P', '2PA', '2P%', 'eFG%', 'FT', 'FTA', 'FT%',
                 'ORB', 'DRB', 'TRB', 'AST', 'STL', 'BLK', 'TOV', 'PF', 'PTS', 'Awards'
             ]
-            
+
             # 실제 컬럼 수에 맞춰 조정
             if len(df.columns) >= len(expected_columns):
                 df.columns = expected_columns + [f'Extra_{i}' for i in range(len(df.columns) - len(expected_columns))]
             else:
                 df.columns = expected_columns[:len(df.columns)]
-            
-            print(f"원본 데이터: {len(df)}명의 선수")
-            
+
+            print(f"{season_year} 시즌 원본 데이터: {len(df)}명의 선수")
+
             # 현재 시즌 트레이드 정보 업데이트
             df = self._update_current_teams(df)
-            
+
             # 데이터 정리
             df = self._clean_data(df)
-            print(f"정리된 데이터: {len(df)}명의 선수")
-            
+            print(f"{season_year} 시즌 정리된 데이터: {len(df)}명의 선수")
+
             return df
-            
+
         except Exception as e:
-            print(f"Basketball Reference 데이터 수집 오류: {e}")
+            print(f"{season_year} 시즌 Basketball Reference 데이터 수집 오류: {e}")
             return pd.DataFrame()
     
     def _update_current_teams(self, df: pd.DataFrame) -> pd.DataFrame:
