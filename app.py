@@ -483,7 +483,14 @@ def main():
     team_roster_data = []
     max_display_players = 10  # 표시할 최대 선수 수를 10명으로 고정
 
-    for team_name, team_data in team_summary.items():
+    # 팀 순서 정의
+    team_order = ["윤범", "수현", "철웅", "두현", "진빈", "원준", "단열", "지원", "정명", "준희", "병욱", "경찬"]
+
+    # 정의된 순서대로 팀 데이터 처리
+    for team_name in team_order:
+        if team_name not in team_summary:
+            continue
+        team_data = team_summary[team_name]
         row_data = {
             '팀명': team_name,
             '남은 예산': f"${team_data['budget_left']}",
