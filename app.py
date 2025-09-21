@@ -90,21 +90,37 @@ def player_search_section():
         player_options.append(display_name)
         player_data_map[display_name] = player
 
+    # 정렬된 옵션 생성 (selectbox와 일치)
+    sorted_player_options = sorted(player_options)
+    sorted_player_data_map = {name: player_data_map[name] for name in sorted_player_options}
+
     # 자동완성 selectbox
     # 검색에서 선택된 선수가 있으면 기본값으로 설정
     default_index = 0
     if hasattr(st.session_state, 'selected_player_from_search'):
         search_selection = st.session_state.selected_player_from_search
-        if search_selection in player_options:
-            default_index = sorted(player_options).index(search_selection) + 1
-            # 한 번 사용한 후 삭제
-            delattr(st.session_state, 'selected_player_from_search')
+        print(f"DEBUG: 검색에서 선택된 선수: {search_selection}")
+
+        if search_selection in sorted_player_options:
+            try:
+                default_index = sorted_player_options.index(search_selection) + 1
+                print(f"DEBUG: 기본 인덱스 설정: {default_index}")
+            except ValueError:
+                print(f"DEBUG: 인덱스 찾기 실패: {search_selection}")
+                default_index = 0
+        else:
+            print(f"DEBUG: 정렬된 옵션에서 찾을 수 없음: {search_selection}")
+            print(f"DEBUG: 사용 가능한 첫 5개 옵션: {sorted_player_options[:5]}")
+
+        # 한 번 사용한 후 삭제
+        delattr(st.session_state, 'selected_player_from_search')
 
     selected_option = st.selectbox(
         "선수 선택",
-        options=["선수 선택..."] + sorted(player_options),
+        options=["선수 선택..."] + sorted_player_options,
         index=default_index,
-        help="선수 이름을 타이핑하면 자동완성됩니다"
+        help="선수 이름을 타이핑하면 자동완성됩니다",
+        key="player_selectbox"
     )
 
     # 텍스트 검색도 병행 제공
@@ -117,8 +133,17 @@ def player_search_section():
 
     # selectbox에서 선수가 선택된 경우
     if selected_option != "선수 선택...":
-        selected_player = player_data_map[selected_option]
+        selected_player = sorted_player_data_map[selected_option]
+        print(f"DEBUG: selectbox에서 선택된 선수: {selected_player['name']}")
+        # 선택된 선수를 세션 상태에 저장
+        st.session_state.current_selected_player = selected_player
+    # selectbox에서 선택이 안 되어 있어도 세션 상태에 저장된 선수가 있으면 사용
+    elif hasattr(st.session_state, 'current_selected_player') and st.session_state.current_selected_player is not None:
+        selected_player = st.session_state.current_selected_player
+        print(f"DEBUG: 세션 상태에서 선수 복원: {selected_player['name']}")
 
+    # 선수가 선택되었으면 정보 표시
+    if selected_player is not None:
         # 선수 정보 카드 표시 (컴팩트하게)
         st.markdown("---")
 
@@ -132,12 +157,17 @@ def player_search_section():
 
         # 경매 시작 버튼
         if st.button("🔥 경매 시작", type="primary", key="auction_start_sidebar", use_container_width=True):
+            print(f"DEBUG: 경매 시작 버튼 클릭 - 선수: {selected_player['name']}")
+
             # 현재 경매 상태 확인
             current_auction = st.session_state.auction_manager.get_current_auction_info()
             if current_auction['is_active']:
                 st.error(f"이미 {current_auction['current_player']} 경매가 진행 중입니다.")
             else:
+                print(f"DEBUG: 경매 시작 시도 - 선수명: {selected_player['name']}")
                 success = st.session_state.auction_manager.start_player_auction(selected_player['name'])
+                print(f"DEBUG: 경매 시작 결과: {success}")
+
                 if success:
                     st.success(f"{selected_player['name']} 경매 시작!")
                     st.rerun()
@@ -160,6 +190,7 @@ def player_search_section():
                 ):
                     # 선택된 선수를 selectbox에 반영하기 위해 세션 상태 사용
                     display_name = f"{player['name']} ({player['team']})"
+                    print(f"DEBUG: 검색 결과에서 선수 선택: {display_name}")
                     st.session_state.selected_player_from_search = display_name
                     st.rerun()
         else:
