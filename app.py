@@ -139,8 +139,18 @@ def player_search_section():
         st.session_state.current_selected_player = selected_player
     # selectbox에서 선택이 안 되어 있어도 세션 상태에 저장된 선수가 있으면 사용
     elif hasattr(st.session_state, 'current_selected_player') and st.session_state.current_selected_player is not None:
-        selected_player = st.session_state.current_selected_player
-        print(f"DEBUG: 세션 상태에서 선수 복원: {selected_player['name']}")
+        # 세션에 저장된 선수가 아직 available한지 확인
+        saved_player = st.session_state.current_selected_player
+        player_name = saved_player['name'] if isinstance(saved_player, dict) else saved_player.get('name', '')
+
+        # available_players에서 해당 선수 찾기
+        if not available_players.empty and not available_players[available_players['name'] == player_name].empty:
+            selected_player = saved_player
+            print(f"DEBUG: 세션 상태에서 선수 복원: {player_name}")
+        else:
+            # 더 이상 available하지 않은 선수면 세션 상태에서 제거
+            print(f"DEBUG: 선수 {player_name}는 더 이상 available하지 않음, 세션 상태 정리")
+            delattr(st.session_state, 'current_selected_player')
 
     # 선수가 선택되었으면 정보 표시
     if selected_player is not None:
@@ -191,6 +201,9 @@ def player_search_section():
                     # 선택된 선수를 selectbox에 반영하기 위해 세션 상태 사용
                     display_name = f"{player['name']} ({player['team']})"
                     print(f"DEBUG: 검색 결과에서 선수 선택: {display_name}")
+                    # 기존 세션 상태 정리
+                    if hasattr(st.session_state, 'current_selected_player'):
+                        delattr(st.session_state, 'current_selected_player')
                     st.session_state.selected_player_from_search = display_name
                     st.rerun()
         else:
@@ -255,6 +268,9 @@ def auction_control_section():
             if st.button("✅ 낙찰", key="sidebar_finalize_btn", use_container_width=True):
                 success, message = st.session_state.auction_manager.finalize_current_auction()
                 if success:
+                    # 경매 완료 후 세션 상태 정리
+                    if hasattr(st.session_state, 'current_selected_player'):
+                        delattr(st.session_state, 'current_selected_player')
                     st.success("낙찰!")
                     st.rerun()
                 else:
@@ -263,6 +279,9 @@ def auction_control_section():
         with col2:
             if st.button("❌ 취소", key="sidebar_cancel_btn", use_container_width=True):
                 if st.session_state.auction_manager.cancel_current_auction():
+                    # 경매 취소 후 세션 상태 정리
+                    if hasattr(st.session_state, 'current_selected_player'):
+                        delattr(st.session_state, 'current_selected_player')
                     st.info("경매 취소됨")
                     st.rerun()
 
@@ -376,6 +395,25 @@ def main():
         st.divider()
 
         st.markdown("## ⚙️ 설정")
+
+        # 드래프트 초기화
+        with st.expander("🔄 드래프트 초기화", expanded=False):
+            st.warning("⚠️ 이 작업은 모든 드래프트 진행사항을 삭제합니다.")
+            st.write("- 모든 선수가 다시 available 상태가 됩니다")
+            st.write("- 모든 팀의 선수와 예산이 초기화됩니다")
+            st.write("- 진행 중인 경매가 취소됩니다")
+
+            if st.button("⚠️ 드래프트 초기화 실행", type="primary", use_container_width=True, key="reset_draft_btn"):
+                if st.session_state.data_manager.reset_draft():
+                    # 세션 상태도 정리
+                    if hasattr(st.session_state, 'current_selected_player'):
+                        delattr(st.session_state, 'current_selected_player')
+                    st.success("드래프트가 초기화되었습니다!")
+                    st.rerun()
+                else:
+                    st.error("드래프트 초기화 중 오류가 발생했습니다.")
+
+        st.divider()
 
         # 팀 설정
         team_settings_section()

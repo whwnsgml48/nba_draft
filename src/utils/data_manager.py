@@ -400,3 +400,47 @@ class DataManager:
     def get_league_settings(self) -> LeagueSettings:
         """현재 리그 설정을 반환합니다."""
         return self.league_settings
+
+    def reset_draft(self) -> bool:
+        """드래프트를 초기화합니다."""
+        try:
+            print("드래프트 초기화 시작...")
+
+            # 1. 모든 선수의 draft_status를 'available'로 변경
+            df = self.load_players()
+            if not df.empty:
+                print(f"선수 데이터 로드: {len(df)}명")
+
+                # 현재 drafted 상태인 선수들 확인
+                drafted_count = len(df[df['draft_status'] == 'drafted'])
+                print(f"현재 drafted 상태 선수: {drafted_count}명")
+
+                df['draft_status'] = 'available'
+                df['draft_price'] = 0
+                df['draft_team'] = ''
+                self.save_players(df)
+                print("선수 데이터 초기화 완료")
+
+            # 2. 모든 팀 초기화
+            print("팀 데이터 초기화 중...")
+            self.teams = self._initialize_teams()
+            print("팀 데이터 초기화 완료")
+
+            # 3. 경매 상태 초기화
+            print("경매 상태 초기화 중...")
+            self.auction_state = AuctionState()
+            print("경매 상태 초기화 완료")
+
+            # 4. 상태 저장
+            print("상태 저장 중...")
+            self.save_state()
+            print("상태 저장 완료")
+
+            print("드래프트 초기화 완료!")
+            return True
+
+        except Exception as e:
+            print(f"드래프트 초기화 중 오류: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
