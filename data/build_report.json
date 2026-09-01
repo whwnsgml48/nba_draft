@@ -1,0 +1,87 @@
+{
+ "out": "/Users/johnny/personal_work/nba_draft/data/players.min.json",
+ "bytes": 226263,
+ "counts": {
+  "players": 690,
+  "aliases": 147,
+  "market_pool": 174,
+  "prior_price": 120,
+  "team_unknown": 80,
+  "pos_unknown": 0
+ },
+ "stat_provenance": {
+  "2025-26": 414,
+  "2024-25": 102,
+  "blend": 171,
+  "manual": 3
+ },
+ "alias_miss": [],
+ "alias_extra_miss": [],
+ "checks": [
+  {
+   "name": "2025-26 CSV 로드 583행(헤더+League Average 제외 582명)",
+   "pass": true,
+   "detail": "582명"
+  },
+  {
+   "name": "합집합 풀 ≥ 680명",
+   "pass": true,
+   "detail": "690명"
+  },
+  {
+   "name": "별칭 120건 히트율 100%",
+   "pass": true,
+   "detail": "실패 0건"
+  },
+  {
+   "name": "큐레이션 풀 174명 전원 등재",
+   "pass": true,
+   "detail": "174/174"
+  },
+  {
+   "name": "풀 선수가 검색 랭킹 상단 점유",
+   "pass": true,
+   "detail": "상단 174위 중 풀 174명"
+  },
+  {
+   "name": "팀 시드 14명 전원 확정",
+   "pass": true,
+   "detail": "14명 ['준희', '정명', '단열', '경찬', '병욱', '원준', '윤범', '진빈', '지원', '두현', '수현', '철웅', '강호', '완식']"
+  },
+  {
+   "name": "루키 3명 등재",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "name": "보강 별칭 전원 매칭",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "name": "PTS 실적 보유 = 전체 − 신인 3명",
+   "pass": true,
+   "detail": "687/690"
+  },
+  {
+   "name": "A/T 산출 (TOV>0 전원)",
+   "pass": true,
+   "detail": "657명 산출 · TOV=0 으로 정의불가 30명"
+  },
+  {
+   "name": "풀 선수 표시명이 players.json 과 정확히 일치",
+   "pass": true,
+   "detail": "174명"
+  },
+  {
+   "name": "사적 판단 필드 유출 0건 (시장가·my_max·tag)",
+   "pass": true,
+   "detail": "유출 []"
+  },
+  {
+   "name": "포지션 자격 미상 0명",
+   "pass": true,
+   "detail": "미상 0명"
+  }
+ ]
+}

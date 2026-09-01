@@ -33,3 +33,7 @@ venv.bak/
 
 # Streamlit
 .streamlit/
+# 리허설 산출물 (tests/run.sh 가 생성)
+console.rehearsal.html
+data/players.rehearsal.json
+data/build_report.rehearsal.json

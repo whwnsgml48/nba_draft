@@ -1,0 +1,1563 @@
+<!-- nba_draft 커미셔너 진행 콘솔 · P1 (빠른 기록 모드)
+     담기는 데이터는 리그 공유 사실뿐이다 — 이름·팀·포지션·13캣 성적·작년 낙찰가.
+     참가자 개인의 평가·목표가는 설계상 담지 않는다 (build_db.py 의 유출 검사 참조).
+     이 파일은 템플릿이다. embed.py 가 __PLAYERS_JSON__ 을 실데이터로 치환해 console.html 을 만든다.
+     직접 열면 동작하지 않는다. -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>옥션 진행 콘솔 — 14팀 / $200 / 9명</title>
+<style>
+  :root{
+    --bg:#0e1116; --panel:#161b22; --panel2:#1c232c; --line:#2a323d;
+    --fg:#e6edf3; --dim:#8b949e; --dim2:#6e7681;
+    --accent:#4a9eff; --ok:#3fb950; --warn:#d29922; --bad:#f85149;
+    --chip:#243447;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--bg);color:var(--fg);
+    font:15px/1.45 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Segoe UI",sans-serif;
+    display:flex;flex-direction:column;overflow:hidden}
+  button{font:inherit;color:inherit;background:var(--panel2);border:1px solid var(--line);
+    border-radius:6px;padding:5px 10px;cursor:pointer}
+  button:hover{background:var(--chip)}
+  input{font:inherit;color:inherit;background:transparent;border:0;outline:0}
+
+  /* ── 상단 바 ── */
+  #top{display:flex;align-items:center;gap:18px;padding:10px 16px;
+    background:var(--panel);border-bottom:1px solid var(--line);flex:0 0 auto}
+  #top .k{color:var(--dim);font-size:12px;letter-spacing:.04em}
+  #top .v{font-size:19px;font-weight:600;font-variant-numeric:tabular-nums}
+  #top .sp{flex:1}
+  .nom{color:var(--accent)}
+
+  /* ── 본문 2열 ── */
+  #main{flex:1;display:flex;min-height:0}
+  #left{width:500px;flex:0 0 auto;border-right:1px solid var(--line);
+    display:flex;flex-direction:column;min-height:0}
+  #right{flex:1;display:flex;flex-direction:column;min-height:0}
+
+  /* ── 입력 ── */
+  #entry{padding:12px 14px;border-bottom:1px solid var(--line);background:var(--panel)}
+  #stages{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px;min-height:26px}
+  .chip{background:var(--chip);border:1px solid var(--accent);border-radius:5px;
+    padding:2px 9px;font-size:13px;white-space:nowrap}
+  .chip.b{border-color:var(--ok)}
+  .stagelabel{color:var(--dim);font-size:12px}
+  #q{width:100%;font-size:26px;font-weight:600;padding:6px 2px;
+    border-bottom:2px solid var(--accent);border-radius:0}
+  #q::placeholder{color:var(--dim2);font-weight:400}
+  #hint{color:var(--dim);font-size:12px;margin-top:6px;min-height:16px}
+  #hint b{color:var(--warn);font-weight:600}
+
+  /* ── 라이브 호가 ── */
+  #live{display:none;padding:10px 14px;border-bottom:1px solid var(--line);
+    background:#161f2b;flex:0 0 auto}
+  #live.on{display:block}
+  #live .lh{display:flex;align-items:baseline;gap:10px;margin-bottom:6px}
+  #live .ln{font-size:19px;font-weight:700}
+  #live .lt{margin-left:auto;font-size:34px;font-weight:700;line-height:1;
+    font-variant-numeric:tabular-nums}
+  #live .lt.warn{color:var(--warn)}
+  #live .lt.done{color:var(--bad)}
+  #live .cur{font-size:15px}
+  #live .cur b{font-size:24px;font-variant-numeric:tabular-nums}
+  #live .cur i{color:var(--accent);font-style:normal;font-weight:600}
+  #live .bids{margin-top:6px;color:var(--dim);font-size:11.5px;
+    max-height:44px;overflow-y:auto;line-height:1.5}
+  #live .bids u{text-decoration:none;color:var(--fg)}
+  #modeTag{font-size:12.5px;font-weight:600;padding:4px 10px}
+  #modeTag .kb{font-size:10px;font-weight:400;color:var(--dim2);
+    border:1px solid var(--line);border-radius:3px;padding:0 3px;margin-left:3px}
+  #modeTag.live{background:#2a3f57;color:var(--accent);border-color:var(--accent)}
+
+  /* ── 불변식 배너 ── */
+  #inv{border:1px solid var(--line);border-radius:6px;padding:4px 10px;cursor:pointer;
+    font-size:13px;font-weight:600;white-space:nowrap}
+  #inv.ok{border-color:#2d5a36;color:var(--ok)}
+  #inv.warn{border-color:#5a4a1e;color:var(--warn)}
+  #inv.err{border-color:#6e2b28;color:var(--bad);background:#2a1614}
+  .ivrow{display:flex;gap:10px;align-items:baseline;padding:7px 0;
+    border-bottom:1px solid var(--line);font-size:13px}
+  .ivrow .id{font-weight:700;width:26px}
+  .ivrow .nm{min-width:230px}
+  .ivrow .st{width:52px;font-weight:600}
+  .ivrow.ok .st{color:var(--ok)} .ivrow.warn .st{color:var(--warn)}
+  .ivrow.err .st{color:var(--bad)}
+  .ivrow.info .st{color:var(--accent)}
+  .ivrow .dt{color:var(--dim);flex:1}
+
+  /* ── 성적 카드 ── */
+  #card{border-bottom:1px solid var(--line);background:var(--panel2);padding:10px 14px;
+    flex:0 0 auto;display:none}
+  #card.on{display:block}
+  #card .ch{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+  #card .cn{font-size:20px;font-weight:700}
+  #card .ck{color:var(--accent);font-size:13px}
+  #card .cm{color:var(--dim);font-size:12px}
+  #card .cmk{color:var(--warn);font-size:12px;font-variant-numeric:tabular-nums}
+  #card .sp{flex:1}
+  .cats{display:grid;grid-template-columns:repeat(7,1fr);gap:1px 1px;background:var(--line)}
+  .cat{background:var(--panel);padding:5px 4px;text-align:center}
+  .cat u{display:block;color:var(--dim2);font-size:9.5px;text-decoration:none;
+    letter-spacing:.02em;text-transform:uppercase}
+  .cat b{display:block;font-size:16px;font-weight:600;font-variant-numeric:tabular-nums;
+    line-height:1.3}
+  .cat.neg b{color:var(--bad)}
+  .cat.na b{color:var(--dim2);font-weight:400}
+  #card .cprov{color:var(--dim2);font-size:10.5px;margin-top:6px}
+
+  /* ── 지명 대기열 ── */
+  #queue{display:flex;gap:6px;align-items:baseline}
+  #queue .qn{font-size:19px;font-weight:600;color:var(--accent)}
+  #queue .qx{color:var(--dim2);font-size:12px}
+
+  /* ── 검색 결과 ── */
+  #results{flex:1;overflow-y:auto;min-height:0}
+  .row{display:flex;align-items:center;gap:10px;padding:7px 14px;
+    border-bottom:1px solid #1d242e;cursor:pointer}
+  .row:hover,.row.sel{background:var(--panel2)}
+  .row .num{width:17px;text-align:right;color:var(--dim2);font-size:12px;flex:0 0 auto}
+  .row .nm{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row .kr{color:var(--accent);font-size:12px;flex:0 0 auto}
+  .row .meta{color:var(--dim);font-size:12px;flex:0 0 auto;font-variant-numeric:tabular-nums}
+  .row .sp{flex:1}
+  .row .mk{color:var(--warn);font-size:12px;flex:0 0 auto;font-variant-numeric:tabular-nums}
+  .row.add{color:var(--ok)}
+  .empty{padding:20px 14px;color:var(--dim2)}
+
+  /* ── 라이브: 다음 동작 ── */
+  .acts{padding:10px 12px;display:flex;flex-direction:column;gap:7px}
+  .act{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:7px;
+    background:var(--panel);border:1px solid var(--line)}
+  .act.go{border-color:var(--accent);background:#16283c}
+  .act.bad{border-color:var(--bad);background:#2a1614}
+  .act .ak{font-size:11px;color:var(--dim);white-space:nowrap;min-width:74px}
+  .act .ak b{display:inline-block;margin-left:5px;font-size:13px;color:var(--fg);
+    border:1px solid var(--line);border-radius:4px;padding:0 5px}
+  .act .al{font-size:16px;font-weight:700;min-width:44px}
+  .act .av{font-size:13.5px;flex:1}
+  .act .av b{font-weight:700}
+  .act .dim{color:var(--dim)}
+  .act .er{color:var(--bad);font-weight:600}
+
+  /* ── 로스터 보드 ── */
+  #board{flex:1;min-height:0;overflow-y:auto;padding:1px;
+    display:grid;grid-template-columns:repeat(7,minmax(0,1fr));
+    gap:1px;background:var(--line);align-content:start}
+  .tb{background:var(--panel);display:flex;flex-direction:column;min-width:0}
+  .tb.hi{background:#17283c;box-shadow:inset 0 0 0 1px var(--accent)}
+  .tb.dim{opacity:.38}
+  .tb.nomnow{box-shadow:inset 0 0 0 2px var(--accent)}
+  .tb.unset{opacity:.45}
+
+  .tbh{padding:5px 7px 4px;border-bottom:1px solid var(--line);background:var(--panel2)}
+  .tbh .n{font-weight:700;font-size:13.5px;display:flex;align-items:baseline;gap:4px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tbh .n i{color:var(--accent);font-style:normal;font-size:9.5px;flex:0 0 auto}
+  .tbh .n.empty{color:var(--bad);font-weight:400}
+  .tbh .b{display:flex;align-items:baseline;gap:5px;margin-top:1px}
+  .tbh .b em{font-style:normal;font-size:17px;font-weight:700;
+    font-variant-numeric:tabular-nums;line-height:1.15}
+  .tbh .b s{text-decoration:none;color:var(--dim);font-size:10px;
+    font-variant-numeric:tabular-nums}
+  .tbh .fl{display:flex;gap:3px;flex-wrap:wrap;margin-top:2px;min-height:11px}
+  .tbh .fl span{font-size:9px;padding:0 3px;border-radius:2px;
+    background:#3a2f14;color:var(--warn);white-space:nowrap}
+  .tbh .fl span.bad{background:#3a1a18;color:var(--bad)}
+  .tbh .fl span.dry{background:#22303f;color:var(--accent)}
+
+  .slots{display:flex;flex-direction:column}
+  .sl{display:flex;align-items:baseline;gap:4px;padding:2px 7px;font-size:12px;
+    border-top:1px solid #1a2027;min-height:20px}
+  .sl:first-child{border-top:0}
+  .sl u{text-decoration:none;color:var(--dim2);font-size:9px;width:9px;flex:0 0 auto}
+  .sl b{font-weight:600;flex:1;min-width:0;white-space:nowrap;overflow:hidden;
+    text-overflow:ellipsis}
+  .sl s{text-decoration:none;font-variant-numeric:tabular-nums;color:var(--warn);
+    font-size:11.5px;flex:0 0 auto;font-weight:600}
+  .sl i{font-style:normal;color:var(--dim2);font-size:9px;flex:0 0 auto}
+  .sl.open b{color:var(--dim2);font-weight:400}
+  .sl.fresh{background:#1b2c1e}
+
+  /* ── 로그 ── */
+  #logwrap{flex:0 0 auto;display:flex;flex-direction:column;
+    max-height:170px;min-height:70px;border-top:1px solid var(--line)}
+  #loghead{padding:6px 14px;color:var(--dim);font-size:12px;background:var(--panel);
+    display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line)}
+  #loghead .sp{flex:1}
+  #log{flex:1;overflow-y:auto;min-height:0}
+  #loghead button{padding:1px 7px;font-size:11px}
+  .lrow{display:flex;align-items:center;gap:9px;padding:5px 14px;
+    border-bottom:1px solid #1a2027;font-size:13px}
+  .lrow:hover{background:var(--panel2)}
+  .lrow .i{width:26px;text-align:right;color:var(--dim2);font-size:11px}
+  .lrow .nm{font-weight:600;min-width:170px}
+  .lrow .tm{color:var(--accent);min-width:56px}
+  .lrow .pr{font-variant-numeric:tabular-nums;font-weight:600;min-width:46px}
+  .lrow .sp{flex:1}
+  .lrow button{padding:1px 7px;font-size:11px;color:var(--dim)}
+  .lrow button:hover{color:var(--bad);border-color:var(--bad)}
+
+  /* ── 오버레이(팀 설정) ── */
+  #ov{position:fixed;inset:0;background:#000a;display:none;
+    align-items:center;justify-content:center;z-index:20}
+  #ov.on{display:flex}
+  #iv{position:fixed;inset:0;background:#000a;display:none;
+    align-items:center;justify-content:center;z-index:21}
+  #iv.on{display:flex}
+  #ivbox{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:18px 20px;width:720px;max-height:84vh;overflow:auto}
+  #ivbox h2{margin:0 0 4px;font-size:16px}
+  #ivbox p{margin:0 0 14px;color:var(--dim);font-size:12px;line-height:1.5}
+  #ovbox{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:18px 20px;width:620px;max-height:84vh;overflow:auto}
+  #ovbox h2{margin:0 0 4px;font-size:16px}
+  #ovbox p{margin:0 0 14px;color:var(--dim);font-size:12px}
+  .tgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+  .tedit{display:flex;align-items:center;gap:8px;background:var(--panel2);
+    border:1px solid var(--line);border-radius:6px;padding:5px 9px}
+  .tedit span{color:var(--dim2);font-size:11px;width:16px}
+  .tedit input{flex:1;font-size:15px;font-weight:600}
+  #ordList{display:grid;grid-template-columns:repeat(2,1fr);gap:4px}
+  .ordrow{display:flex;align-items:center;gap:8px;background:var(--panel2);
+    border:1px solid var(--line);border-radius:6px;padding:3px 8px;font-size:14px}
+  .ordrow .no{color:var(--dim2);font-size:11px;width:18px;text-align:right}
+  .ordrow .nm{flex:1;font-weight:600}
+  .ordrow .nm.empty{color:var(--bad);font-weight:400}
+  .ordrow button{padding:0 6px;font-size:11px;line-height:1.6}
+  .ovfoot{display:flex;gap:8px;margin-top:16px;align-items:center}
+  .ovfoot .sp{flex:1}
+  /* ── 도움말 ── */
+  #hp{position:fixed;inset:0;background:#000b;display:none;
+    align-items:center;justify-content:center;z-index:25}
+  #hp.on{display:flex}
+  #hpbox{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:18px 22px;width:min(1080px,94vw);max-height:90vh;overflow:auto}
+  .hph{display:flex;align-items:baseline;gap:10px;color:var(--dim);font-size:12px;
+    border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:14px}
+  .hph h2{margin:0;font-size:18px;color:var(--fg)}
+  .hph .sp{flex:1}
+  .hpg{display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:16px 22px}
+  .hpg section{min-width:0}
+  .hpg h3{margin:0 0 7px;font-size:13.5px;color:var(--accent);font-weight:700}
+  .hpg p{margin:0 0 7px;font-size:12.5px;line-height:1.62;color:var(--fg)}
+  .hpg ul{margin:0 0 7px;padding-left:17px}
+  .hpg li{font-size:12.5px;line-height:1.62;margin-bottom:3px}
+  .hpg pre{margin:0 0 8px;background:var(--panel2);border:1px solid var(--line);
+    border-radius:6px;padding:8px 10px;font-size:12px;line-height:1.75;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap;
+    overflow-x:auto}
+  .hpg code{background:var(--panel2);border-radius:3px;padding:0 4px;font-size:12px}
+  .hpg .note{color:var(--dim);font-size:11.5px;border-left:2px solid var(--line);
+    padding-left:8px;margin-top:7px}
+  .hpg .note b{color:var(--warn)}
+  .k,.hpk{display:inline-block;border:1px solid var(--line);border-radius:4px;
+    padding:0 5px;font-size:11px;background:var(--panel2);color:var(--fg);
+    white-space:nowrap;font-family:inherit}
+
+  .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);
+    background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--ok);
+    border-radius:6px;padding:9px 16px;font-size:14px;z-index:30;pointer-events:none;
+    transition:opacity .18s;box-shadow:0 6px 22px #0008}
+  .toast.bad{border-left-color:var(--bad)}
+  .toast.off{opacity:0}
+</style>
+
+<div id="top">
+  <div><div class="k">지명 (순번 로테이션)</div><div id="queue"></div></div>
+  <div><div class="k">낙찰</div><div class="v" id="tCnt">0 / 126</div></div>
+  <div><div class="k">총 낙찰액</div><div class="v" id="tSpent">$0</div></div>
+  <div><div class="k">평균가</div><div class="v" id="tAvg">—</div></div>
+  <div class="sp"></div>
+  <button id="modeTag" title="클릭 또는 Tab 으로 전환">모드: 빠른 기록 <span class="kb">Tab</span></button>
+  <div id="inv" class="ok" title="클릭하면 상세">불변식 —</div>
+  <button id="bHelp" title="? 로도 열린다">사용법 ?</button>
+  <button id="bTeams">팀 설정</button>
+  <button id="bUndo" title="Ctrl+Z">되돌리기</button>
+  <button id="bRedo" title="Ctrl+Shift+Z">다시</button>
+  <button id="bCsv">결과 CSV</button>
+  <button id="bSave">세션 저장</button>
+  <button id="bLoad">불러오기</button>
+</div>
+
+<div id="main">
+  <div id="left">
+    <div id="entry">
+      <div id="stages"></div>
+      <input id="q" autocomplete="off" spellcheck="false">
+      <div id="hint"></div>
+    </div>
+    <div id="live"></div>
+    <div id="card"></div>
+    <div id="results"></div>
+  </div>
+  <div id="right">
+    <div id="board"></div>
+    <div id="logwrap">
+      <div id="loghead"><span id="logn">낙찰 기록 0건</span><span class="sp"></span>
+        <span style="color:var(--dim2)">행의 [취소]로 개별 철회 · Ctrl+Z는 시간 되돌리기</span></div>
+      <div id="log"></div>
+    </div>
+  </div>
+</div>
+
+<div id="hp"><div id="hpbox">
+  <div class="hph">
+    <h2>사용법</h2>
+    <span class="sp"></span>
+    <span class="hpk">?</span> 로 다시 열 수 있다
+  </div>
+
+  <div class="hpg">
+    <section>
+      <h3>1. 기본 — 빠른 기록 모드</h3>
+      <p>낙찰된 것만 찍는 모드다. 한 입력창에서 <b>선수 → 팀 → 금액</b> 세 단계.</p>
+      <pre>웸비 <span class="k">⏎</span>   선수   한글 별칭 · 영문 · 초성(ㅇㅂ) · SGA/KD
+병 <span class="k">⏎</span>     팀     접두사 1~2자면 유일해진다
+87 <span class="k">⏎</span>    낙찰</pre>
+      <p>후보가 여럿이면 <span class="k">1</span>~<span class="k">8</span> 로 고른다.
+         <span class="k">⏎</span> 는 항상 첫 후보.
+         빈 입력에서 <span class="k">Backspace</span> 는 한 단계 뒤로,
+         <span class="k">Esc</span> 는 처음으로.</p>
+      <p class="note">DB에 없는 선수는 검색 결과에 <b>임시 등재</b>가 뜬다. 그대로 <span class="k">⏎</span>.</p>
+    </section>
+
+    <section>
+      <h3>2. 라이브 호가 모드 <span class="k">Tab</span></h3>
+      <p>호가 경쟁을 실시간으로 따라갈 때만 쓴다. 10초 타이머는 <b>이 모드에만</b> 있다.</p>
+      <pre>요키치 <span class="k">⏎</span>  지명 — 지명자 이름으로 자동 $1 입찰
+병34 <span class="k">⏎</span>    병욱 $34 · 타이머 리셋
+윤41 <span class="k">⏎</span>    윤범 $41
+<span class="k">⏎</span>        (빈 입력) 최고가로 낙찰
+<span class="k">Esc</span>      지명 취소 — 낙찰 없음</pre>
+      <p><b>팀 접두사에 금액을 붙여 쓴다</b> — 한글에 숫자가 없어 <code>병34</code> 로도 통한다.
+         지명하면 좌측에 <b>다음 동작 3줄</b>이 뜨고, 타이핑하는 대로 파싱 결과를 되비춘다.</p>
+      <p class="note">타이머가 0이 되어도 <b>자동 낙찰하지 않는다.</b> 규칙은 10초 자동 마감이지만
+         오낙찰이 무입찰보다 비싸다. "낙찰 대기"를 띄우고 사람의 <span class="k">⏎</span> 를 기다린다.</p>
+    </section>
+
+    <section>
+      <h3>3. 실수 되돌리기</h3>
+      <p>두 가지가 따로 있다.</p>
+      <ul>
+        <li><span class="k">Ctrl/⌘+Z</span> — <b>시간 되돌리기.</b> 방금 한 일을 무르며 횟수 제한 없다.
+            <span class="k">Ctrl/⌘+Shift+Z</span> 로 다시 실행.</li>
+        <li>로그 행의 <b>[취소]</b> — <b>개별 철회.</b> 한참 전 낙찰 하나만 지운다.
+            예산·순번이 자동 복구된다.</li>
+      </ul>
+      <p class="note">전체 초기화도 <span class="k">Ctrl/⌘+Z</span> 로 되돌릴 수 있다.</p>
+    </section>
+
+    <section>
+      <h3>4. 지명 순서</h3>
+      <p><b>순번 로테이션</b>이다 (직전 낙찰자 지명이 아니다). 상단에 다음 4명이 뜨고,
+         만석·이름 없는 팀은 자동으로 건너뛴다.</p>
+      <p>당일 추첨 결과는 <b>팀 설정 → 지명 순서</b> 에 접두사만 순서대로 띄어 쓴다.</p>
+      <pre>병 준 진 경 원 윤 단 지 두 수 철 정 강 완</pre>
+      <p class="note">진행 중에 바꿔도 이미 낙찰된 건은 영향받지 않는다.</p>
+    </section>
+
+    <section>
+      <h3>5. 툴이 강제하는 것</h3>
+      <ul>
+        <li><b>최대입찰가</b> = 잔액 − (남은 슬롯 − 1). 초과 입찰은 거부되고 이유를 말한다.</li>
+        <li><b>로스터 9명</b> 초과, <b>$0 이하</b>, <b>중복 낙찰</b> 거부.</li>
+        <li>우상단 <b>장부 배너</b>는 기록 정확성만 센다. 🔴 가 뜨면 세션 파일이 손상된 것이다.</li>
+        <li><b>포지션</b>은 보여주기만 한다 — 각 팀 책임이고 포기도 전략이므로 낙찰을 막지 않는다.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h3>6. 성적 카드 읽기</h3>
+      <p>리그 13캣 순서를 그대로 따른다. 초점 선수(후보 1위 또는 확정한 선수)가 항상 보인다.</p>
+      <ul>
+        <li><b>OREB</b> 공격 리바운드 · <b>A/T</b> 어시스트÷턴오버 · <b>DD</b> 시즌 더블더블 추정</li>
+        <li><b>TOV</b> 는 낮을수록 좋은 항목이라 붉게 쓴다.</li>
+        <li><b>—</b> 는 산출 불가다. A/T 는 TOV가 0이면 나눌 수 없고, 2026 신인은 NBA 실적이 없다.</li>
+      </ul>
+      <p>카드 아래 출처 표기의 뜻:</p>
+      <ul>
+        <li><b>2시즌 GP가중 혼합</b> — 2025-26과 2024-25를 출장 경기수로 섞었다 (최근 시즌 가중)</li>
+        <li><b>2024-25 실적 (2025-26 결장)</b> — 지난 시즌을 통째로 쉰 선수 (부상 복귀조)</li>
+        <li><b>NBA 실적 없음</b> — 2026 드래프트 신인</li>
+      </ul>
+    </section>
+
+    <section>
+      <h3>7. 저장과 내보내기</h3>
+      <ul>
+        <li>모든 변경은 <b>브라우저에 자동 저장</b>된다. 새로고침·크래시로 잃지 않는다.</li>
+        <li><b>세션 저장</b> / <b>불러오기</b> — 기기를 옮기거나 백업할 때.</li>
+        <li><b>결과 CSV</b> — 작년 기록과 같은 형식. 리그 이력 보관용.</li>
+      </ul>
+      <p class="note">이 파일은 네트워크를 쓰지 않는다. 비행기 모드에서도 전부 동작한다.</p>
+    </section>
+  </div>
+
+  <div class="ovfoot">
+    <button id="hpClose" style="border-color:var(--ok);color:var(--ok)">닫기</button>
+    <span class="sp"></span>
+    <label style="color:var(--dim);font-size:12px;display:flex;gap:6px;align-items:center">
+      <input type="checkbox" id="hpSkip"> 열 때 자동으로 띄우지 않기</label>
+  </div>
+</div></div>
+
+<div id="iv"><div id="ivbox">
+  <h2>불변식</h2>
+  <p><b>I1~I4 = 장부 정확성.</b> 진행자의 책임 범위이고 낙찰 단계에서 이미 차단된다.
+     여기서 걸리면 세션 파일이 손으로 수정됐거나 외부에서 불러온 것이다.<br>
+     <b>I5 = 포지션, 정보 등급.</b> 포지션 관리는 각 팀 책임이고 포기도 전략이다.
+     보여주기만 하며 배너 색을 바꾸지 않고 낙찰도 막지 않는다 — 진행자가 조치할 일이 아니다.</p>
+  <div id="ivrows"></div>
+  <div class="ovfoot"><button id="ivClose">닫기</button></div>
+</div></div>
+
+<div id="ov"><div id="ovbox">
+  <h2>팀 설정</h2>
+  <p>이름이 빈 팀은 입찰·지명 대상에서 제외된다.</p>
+  <div class="tgrid" id="tedits"></div>
+
+  <h2 style="margin-top:20px">지명 순서</h2>
+  <p>드래프트 당일 추첨으로 정한다. 추첨 결과를 <b>순서대로 접두사만</b> 띄어 써서 입력하면
+     된다 — 예: <code>병 준 진 경 원 윤 단 지 두 수 철 정 강 완</code>.
+     ↑↓ 로 미세 조정도 가능하다. 진행 중에 바꿔도 이미 낙찰된 건은 영향받지 않는다.</p>
+  <div style="display:flex;gap:8px;margin-bottom:10px">
+    <input id="ordText" placeholder="접두사 14개를 순서대로" spellcheck="false"
+      style="flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:7px 10px;font-size:15px">
+    <button id="ordApply">적용</button>
+    <button id="ordReset">기본순</button>
+  </div>
+  <div id="ordList"></div>
+  <div style="display:flex;gap:8px;align-items:center;margin-top:10px">
+    <span style="color:var(--dim);font-size:12px">현재 지명 위치</span>
+    <select id="ordPos" style="background:var(--panel2);color:inherit;border:1px solid var(--line);border-radius:6px;padding:5px 8px;font:inherit"></select>
+  </div>
+
+  <div class="ovfoot">
+    <button id="ovSave" style="border-color:var(--ok);color:var(--ok)">저장</button>
+    <button id="ovCancel">취소</button>
+    <span class="sp"></span>
+    <button id="ovReset" style="border-color:var(--bad);color:var(--bad)">드래프트 전체 초기화</button>
+  </div>
+</div></div>
+
+<script>
+"use strict";
+const DB = __PLAYERS_JSON__;
+const LG = DB.league.league;
+const NTEAM = LG.teams, BUDGET = LG.budget, SLOTS = LG.roster_slots;
+const TOTAL = NTEAM * SLOTS;
+const KEY = "nba_draft_console_v1";
+
+/* ══════════════ 검색 인덱스 ══════════════
+   영문이 1차 경로다. 발음기호를 접고(Dončić→doncic), 성(姓)과 이니셜을 따로 색인한다.
+   한글 별칭은 실사용 120건 + 보강 27건에 대해 초성까지 색인한다. */
+const CHO = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ";
+function foldEn(s){
+  return s.normalize("NFKD").replace(/[̀-ͯ]/g,"")
+    .toLowerCase().replace(/[.'’]/g,"").replace(/-/g," ")
+    .replace(/\b(jr|sr|ii|iii|iv|v)\b/g,"").replace(/\s+/g," ").trim();
+}
+function choseong(s){
+  let o="";
+  for(const ch of s){
+    const c=ch.charCodeAt(0)-0xAC00;
+    o += (c>=0 && c<11172) ? CHO[Math.floor(c/588)] : ch;
+  }
+  return o;
+}
+const hasHangul = s => /[ㄱ-ㆎ가-힣]/.test(s);
+
+const IDX = DB.players.map((p,i)=>{
+  const f = foldEn(p.n);
+  const parts = f.split(" ");
+  return {
+    i, p, f,
+    last: parts[parts.length-1] || f,
+    initials: parts.map(x=>x[0]).join(""),     // "sga" 는 별칭에 이미 있고, 이건 "vj"·"aj" 류
+    kr: p.kr.map(a=>a.replace(/\s+/g,"")),
+    krCho: p.kr.map(a=>choseong(a.replace(/\s+/g,""))),
+  };
+});
+
+/* 매칭 등급이 낮을수록 우선. 같은 등급이면 DB의 w(가격 계층) 순 — 이미 정렬돼 있다. */
+function search(qRaw, limit){
+  const q = qRaw.trim();
+  if(!q) return [];
+  const out = [];
+  if(hasHangul(q)){
+    const k = q.replace(/\s+/g,"");
+    const isCho = /^[ㄱ-ㆎ]+$/.test(k);
+    for(const e of IDX){
+      if(taken.has(e.i)) continue;
+      let t = 99;
+      for(const a of e.kr){
+        if(a===k) t=Math.min(t,0);
+        else if(a.startsWith(k)) t=Math.min(t,1);
+        else if(a.includes(k)) t=Math.min(t,3);
+      }
+      if(isCho) for(const c of e.krCho){
+        if(c===k) t=Math.min(t,1);
+        else if(c.startsWith(k)) t=Math.min(t,2);
+      }
+      if(t<99) out.push([t,e]);
+    }
+  } else {
+    const k = foldEn(q);
+    for(const e of IDX){
+      if(taken.has(e.i)) continue;
+      let t = 99;
+      if(e.f===k || e.initials===k) t=0;
+      else if(e.last.startsWith(k)) t=1;
+      else if(e.f.startsWith(k)) t=2;
+      else if(e.f.includes(k)) t=3;
+      else for(const a of e.kr){                       // "SGA" "KD" "NAW" 같은 라틴 별칭
+        const al = a.toLowerCase();
+        if(al===k){ t=0; break; }
+        if(al.startsWith(k)) t=Math.min(t,1);          // "ka"→KAT · "sg"→SGA
+      }
+      if(t<99) out.push([t,e]);
+    }
+  }
+  out.sort((a,b)=> a[0]-b[0] || a[1].i-b[1].i);
+  return out.slice(0,limit).map(x=>x[1]);
+}
+
+/* ══════════════ 상태 ══════════════ */
+const seed = DB.seed_teams.slice(0, NTEAM);
+while(seed.length < NTEAM) seed.push("");
+
+function blank(){
+  // order  = 지명 로테이션 순서 (teams 배열의 인덱스 나열). 드래프트 당일 추첨으로
+  //          정해지므로 화면에서 바꿀 수 있어야 한다. teams 배열 순서와 분리한다.
+  // nomPos = order 안에서의 현재 위치.
+  // 2026-09-01 규칙 변경: 직전 낙찰자 지명 → 순번 로테이션.
+  return { v:3, teams: seed.map(n=>({name:n, picks:[]})),
+           order: S_defaultOrder(), nomPos:0, log:[], adhoc:[],
+           mode:"fast", live:null };
+}
+function S_defaultOrder(){ return Array.from({length:NTEAM}, (_,i)=>i); }
+
+/* order 를 항상 유효한 순열로 유지한다 (팀 추가·불러오기·수기 편집 방어) */
+function normOrder(){
+  if(!Array.isArray(S.order)) S.order = S_defaultOrder();
+  const seen = new Set(), out = [];
+  for(const i of S.order)
+    if(Number.isInteger(i) && i>=0 && i<NTEAM && !seen.has(i)){ seen.add(i); out.push(i); }
+  for(let i=0;i<NTEAM;i++) if(!seen.has(i)) out.push(i);
+  S.order = out;
+  if(!Number.isInteger(S.nomPos) || S.nomPos<0 || S.nomPos>=NTEAM) S.nomPos = 0;
+}
+
+/* 지명 로테이션 — 만석(9명) 팀과 이름이 빈 팀은 건너뛴다. */
+function canNominate(t){ return !!t.name && t.picks.length < SLOTS; }
+function nomAtPos(fromPos){
+  normOrder();
+  for(let d=0; d<NTEAM; d++){
+    const pos = (fromPos + d) % NTEAM;
+    const ti = S.order[pos];
+    if(canNominate(S.teams[ti])) return {pos, team:ti};
+  }
+  return null;                       // 전원 만석 = 드래프트 종료
+}
+function nominator(){ const r = nomAtPos(S.nomPos); return r ? r.team : null; }
+function nomQueue(n){
+  const q = [];
+  let pos = S.nomPos;
+  for(let guard=0; guard<NTEAM*2 && q.length<n; guard++){
+    const r = nomAtPos(pos);
+    if(!r) break;
+    if(q.length && r.team===q[0]) break;      // 한 바퀴 다 돌았다
+    q.push(r.team);
+    pos = (r.pos + 1) % NTEAM;
+  }
+  return q;
+}
+function advanceNom(){
+  const r = nomAtPos(S.nomPos);
+  S.nomPos = r ? (r.pos + 1) % NTEAM : 0;
+}
+function retreatNom(){
+  S.nomPos = (S.nomPos - 1 + NTEAM) % NTEAM;
+}
+let S = { teams:[], order:S_defaultOrder(), nomPos:0, log:[], adhoc:[] };
+S = blank();
+let undoStack = [], redoStack = [];
+let taken = new Set();          // 확정된 선수의 IDX 인덱스
+let stage = 0, pick = null, team = null;
+
+function snap(){
+  undoStack.push(JSON.stringify(S));
+  if(undoStack.length>400) undoStack.shift();
+  redoStack.length = 0;
+}
+function recompute(){
+  taken = new Set();
+  for(const e of S.log) if(e.i>=0) taken.add(e.i);
+}
+function persist(){
+  try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(_){}
+}
+function restore(){
+  try{
+    const raw = localStorage.getItem(KEY);
+    if(!raw) return;
+    const o = JSON.parse(raw);
+    if(o && o.v>=1 && o.v<=3 && Array.isArray(o.teams)){
+      if(o.v===1){                    // 직전낙찰자 규칙 시절 세션 — 로테이션으로 이관
+        o.nomIdx = o.nom!=null ? (o.nom + 1) % NTEAM : 0;
+        delete o.nom; o.v = 2;
+      }
+      if(o.v===2){                    // 고정 순서 → 조정 가능한 order/nomPos
+        o.order = S_defaultOrder();
+        o.nomPos = Number.isInteger(o.nomIdx) ? o.nomIdx : 0;
+        delete o.nomIdx; o.v = 3;
+      }
+      S = o;
+      // 시드가 나중에 채워진 경우 마이그레이션 — 빈 칸만 메우고 수정된 이름은 보존한다
+      for(let i=0;i<NTEAM;i++){
+        if(!S.teams[i]) S.teams[i] = {name:"", picks:[]};
+        if(!S.teams[i].name && seed[i]) S.teams[i].name = seed[i];
+      }
+    }
+  }catch(_){}
+}
+
+/* 팀 파생값 — 최대입찰가는 리그 규칙: 잔액 − (남은 슬롯 − 1) */
+function derive(t){
+  const spent = t.picks.reduce((a,p)=>a+p.price,0);
+  const budget = BUDGET - spent;
+  const left = SLOTS - t.picks.length;
+  const maxBid = left<=0 ? 0 : budget - (left-1);
+  return {spent, budget, left, maxBid, full:left<=0};
+}
+
+/* ══════════════ 라이브 호가 모드 (P3) ══════════════
+   리그 규칙: 최소 $1 · 지명 시 자동 $1 입찰 · 새 입찰 후 10초 무입찰이면 마감.
+   타이머가 0에 닿아도 **자동 낙찰하지 않는다** — 오낙찰이 무입찰보다 비싸다.
+   0이 되면 "낙찰 대기"를 크게 띄우고 진행자의 Enter 를 기다린다. */
+const CLOSE_SEC = (DB.league.auction_rules && DB.league.auction_rules.auto_close_seconds) || 10;
+
+function liveOpen(e){
+  const nom = nominator();
+  if(nom===null) return toast("전원 만석 — 드래프트 종료", true);
+  S.live = {
+    i: e.i, n: e.p.n, pos: e.p.pos,
+    bids: [{t: nom, price: 1, auto: true}],   // 지명 시 자동 $1 입찰 (리그 규칙)
+    deadline: Date.now() + CLOSE_SEC*1000,
+  };
+  persist();
+}
+function liveHigh(){
+  if(!S.live || !S.live.bids.length) return null;
+  return S.live.bids[S.live.bids.length-1];
+}
+function liveBid(teamIdx, amount){
+  if(!S.live) return toast("지명된 선수가 없다", true);
+  const t = S.teams[teamIdx];
+  if(!t || !t.name) return toast("팀을 찾을 수 없다", true);
+  const d = derive(t);
+  if(d.full) return toast(`${t.name} 로스터가 이미 ${SLOTS}명`, true);
+  const hi = liveHigh();
+  if(amount <= hi.price)
+    return toast(`현재가 $${hi.price} 보다 높아야 한다`, true);
+  if(amount > d.maxBid)
+    return toast(`${t.name} 최대입찰가 $${d.maxBid} 초과 (잔액 $${d.budget} · 남은 슬롯 ${d.left})`, true);
+  snap();
+  S.live.bids.push({t: teamIdx, price: amount});
+  S.live.deadline = Date.now() + CLOSE_SEC*1000;   // 새 입찰마다 리셋
+  persist(); render();
+  beep(660, 60);
+}
+function liveSell(){
+  if(!S.live) return toast("지명된 선수가 없다", true);
+  const hi = liveHigh();
+  const e = IDX[S.live.i] || {i:S.live.i, p:{n:S.live.n, pos:S.live.pos, kr:[], st:{}}};
+  pick = e; team = hi.t; stage = 2;
+  const bids = S.live.bids.slice();
+  const okSold = commitWith(hi.price, bids);
+  if(okSold){ S.live = null; persist(); }
+}
+function liveCancel(){
+  if(!S.live) return;
+  S.live = null; persist(); resetEntry(); render();
+  toast("지명 취소 (낙찰 없음)", true);
+}
+/* 입찰 입력 파싱 — 키 처리와 미리보기가 같은 규칙을 쓰도록 한 곳에 둔다.
+   한글에 숫자가 없으므로 "병34" 처럼 붙여 써도 모호하지 않다. */
+function parseLiveBid(text){
+  const t = (text||"").trim();
+  if(!t) return {empty:true};
+  const m = t.match(/^(\D+?)\s*(\d+)$/);
+  if(!m) return {err: /^\d+$/.test(t) ? "팀을 함께 입력하라 — 예: 병" + t : "예: 병34"};
+  const tm = teamMatches(m[1]);
+  if(!tm.length)  return {err:`"${m[1]}" 에 맞는 팀이 없다`};
+  if(tm.length>1) return {err:`"${m[1]}" 모호: ${tm.slice(0,4).map(x=>x.t.name).join("·")}`};
+  const amount = parseInt(m[2],10);
+  const d = derive(tm[0].t);
+  const hi = liveHigh();
+  if(hi && amount <= hi.price) return {err:`현재가 $${hi.price} 보다 높아야 한다`, team:tm[0].i, amount};
+  if(amount > d.maxBid)        return {err:`${tm[0].t.name} 최대 $${d.maxBid} 초과`, team:tm[0].i, amount};
+  return {team: tm[0].i, amount};
+}
+
+function liveLeft(){
+  if(!S.live) return null;
+  return Math.max(0, Math.ceil((S.live.deadline - Date.now())/1000));
+}
+
+/* 오프라인 자립을 위해 오디오 파일 대신 WebAudio 로 톤을 낸다 */
+let AC = null;
+function beep(freq, ms){
+  try{
+    AC = AC || new (window.AudioContext||window.webkitAudioContext)();
+    const o = AC.createOscillator(), g = AC.createGain();
+    o.frequency.value = freq; o.type = "sine";
+    g.gain.value = 0.06;
+    o.connect(g); g.connect(AC.destination);
+    o.start(); o.stop(AC.currentTime + ms/1000);
+  }catch(_){}
+}
+
+let tickT = null, lastTick = null;
+function startTicker(){
+  if(tickT) return;
+  tickT = setInterval(()=>{
+    if(!S.live){ lastTick = null; return; }
+    const l = liveLeft();
+    if(l !== lastTick){
+      lastTick = l;
+      if(l>0 && l<=3) beep(880, 70);
+      if(l===0) beep(330, 260);
+      renderLive(); renderStages();
+    }
+  }, 120);
+}
+
+/* ══════════════ 불변식 검증 (P2) ══════════════
+   화면 우상단에 상시 표시한다. I1~I4 는 하드 규칙이라 커밋 단계에서 이미 막지만,
+   상태 파일을 손으로 고치거나 세션을 불러온 경우를 잡기 위해 사후 검증도 둔다.
+
+   I5(포지션)는 **정보 등급**이고 배너 색에 영향을 주지 않는다. 포지션 관리는 각 팀의
+   책임이며 포기도 전략이다 — 장부 오류가 아니다. 그걸로 배너가 노랗게 뜨면 진행자가
+   배너를 무시하게 되고, 그 순간 I1~I4 경보도 같이 죽는다. 표시는 하고 등급은 뺀다. */
+
+const SLOT_POS = ["PG","SG","SF","PF","C"];   // 나머지 UTIL×2 · BN×2 는 무제한
+
+/* 5개 포지션 슬롯에 서로 다른 선수를 배정할 수 있는 최대 수 (Kuhn 이분 매칭) */
+function maxPosMatch(picks){
+  const slotOf = new Array(SLOT_POS.length).fill(-1);
+  function tryAssign(pi, seen){
+    for(let sl=0; sl<SLOT_POS.length; sl++){
+      if(seen[sl]) continue;
+      if(!(picks[pi].pos||[]).includes(SLOT_POS[sl])) continue;
+      seen[sl] = 1;
+      if(slotOf[sl] < 0 || tryAssign(slotOf[sl], seen)){ slotOf[sl] = pi; return true; }
+    }
+    return false;
+  }
+  let m = 0;
+  for(let i=0;i<picks.length;i++)
+    if(tryAssign(i, new Array(SLOT_POS.length).fill(0))) m++;
+  return {size:m, slotOf};
+}
+
+function teamPos(t){
+  const {size, slotOf} = maxPosMatch(t.picks);
+  const missing = SLOT_POS.filter((_,sl)=>slotOf[sl] < 0);
+  const left = SLOTS - t.picks.length;
+  return {size, missing, left,
+          full: left<=0,
+          doomed: size + left < SLOT_POS.length};   // 남은 슬롯을 다 써도 못 채운다
+}
+
+/* I3 — 낙찰가가 "그 시점의" 최대입찰가 이내였는지 로그를 시간순 재생해 확인 */
+function replayI3(){
+  const st = S.teams.map(()=>({spent:0, n:0}));
+  const bad = [];
+  S.log.forEach((e, idx)=>{
+    const s = st[e.t];
+    if(!s){ bad.push({idx, e, why:"존재하지 않는 팀"}); return; }
+    const budget = BUDGET - s.spent, left = SLOTS - s.n;
+    const maxBid = left<=0 ? 0 : budget - (left-1);
+    if(e.price < 1) bad.push({idx, e, why:`$${e.price} < 최소 $1`});
+    else if(e.price > maxBid) bad.push({idx, e, why:`$${e.price} > 당시 최대 $${maxBid}`});
+    s.spent += e.price; s.n++;
+  });
+  return bad;
+}
+
+function validate(){
+  const V = [];
+
+  // I1 — 장부 정합.
+  //   작년 스프레드시트에서는 "낙찰가 합 + 잔액 = $200" 이 유효한 검산이었다. 진행자가
+  //   두 숫자를 각각 손으로 적었기 때문이다. 이 툴에서는 잔액을 지출에서 파생하므로
+  //   그 등식은 항상 참인 동어반복이다. 실제로 깨질 수 있는 것은
+  //   (a) 로스터와 로그의 불일치 — 철회 버그·부분 저장·수기 편집,
+  //   (b) 지출이 예산을 넘는 상태.
+  //   두 표현이 서로를 검산하게 만든다.
+  const i1 = [];
+  for(let ti=0; ti<S.teams.length; ti++){
+    const t = S.teams[ti];
+    const ps = t.picks.reduce((a,p)=>a+p.price, 0);
+    const lg = S.log.filter(e=>e.t===ti);
+    const ls = lg.reduce((a,e)=>a+e.price, 0);
+    if(ps !== ls) i1.push(`${t.name||ti+1} 로스터 $${ps} ≠ 로그 $${ls}`);
+    else if(t.picks.length !== lg.length)
+      i1.push(`${t.name||ti+1} 로스터 ${t.picks.length}명 ≠ 로그 ${lg.length}건`);
+    else if(ps > BUDGET) i1.push(`${t.name||ti+1} 지출 $${ps} > $${BUDGET}`);
+  }
+  V.push({id:"I1", name:`장부 정합 (로스터 ↔ 로그 · 지출 ≤ $${BUDGET})`, level:"err",
+          ok:!i1.length,
+          detail: i1.length ? i1.slice(0,3).join(" / ")
+                : `${NTEAM}팀 · ${S.log.length}건 대조 일치`});
+
+  const i2a = S.teams.filter(t=>t.picks.length > SLOTS);
+  const i2b = S.log.length > TOTAL;
+  V.push({id:"I2", name:`팀별 ≤ ${SLOTS}명 · 총 ≤ ${TOTAL}건`, level:"err", ok:!i2a.length && !i2b,
+          detail: i2a.length ? `초과: ${i2a.map(t=>`${t.name} ${t.picks.length}명`).join(", ")}`
+                : i2b ? `총 ${S.log.length}건 > ${TOTAL}`
+                : `${S.log.length}/${TOTAL}건`});
+
+  const i3 = replayI3();
+  V.push({id:"I3", name:"낙찰가가 당시 최대입찰가 이내", level:"err", ok:!i3.length,
+          detail: i3.length ? i3.slice(0,3).map(b=>`${b.e.n} ${b.why}`).join(" / ")
+                : `${S.log.length}건 재생 통과`});
+
+  const seen = new Map(), dup = [];
+  for(const e of S.log){
+    const k = e.i>=0 ? "i"+e.i : "n"+e.n;
+    if(seen.has(k)) dup.push(e.n); else seen.set(k, e);
+  }
+  V.push({id:"I4", name:"선수 중복 낙찰 0", level:"err", ok:!dup.length,
+          detail: dup.length ? `중복: ${[...new Set(dup)].join(", ")}` : `${seen.size}명 고유`});
+
+  const named = S.teams.filter(t=>t.name);
+  const i5bad = named.filter(t=>{ const q = teamPos(t); return q.full ? q.size < SLOT_POS.length : q.doomed; });
+  V.push({id:"I5", name:"PG·SG·SF·PF·C 라인업 실현 가능", level:"info", ok:!i5bad.length,
+          detail: i5bad.length
+            ? i5bad.map(t=>`${t.name} (${teamPos(t).missing.join("·")} 부족)`).join(", ")
+            : `${named.length}팀 전원 충족 가능`});
+
+  return V;
+}
+
+/* ══════════════ 커밋 / 철회 ══════════════ */
+function commit(amount){ return commitWith(amount, null); }
+
+function commitWith(amount, bids){
+  if(!pick || team==null || !S.teams[team]){ toast("선수와 팀을 먼저 고르라", true); return false; }
+  if(!S.teams[team].name){ toast("이름이 비어 있는 팀에는 낙찰할 수 없다", true); return false; }
+  const t = S.teams[team];
+  const d = derive(t);
+  if(d.full){ toast(`${t.name} 로스터가 이미 ${SLOTS}명이다`, true); return false; }
+  if(amount < 1){ toast("낙찰가는 최소 $1", true); return false; }
+  if(amount > d.maxBid){
+    toast(`${t.name} 최대입찰가 $${d.maxBid} 초과 (잔액 $${d.budget} · 남은 슬롯 ${d.left})`, true);
+    return false;
+  }
+
+  snap();
+  const rec = { i: pick.i, n: pick.p.n, pos: pick.p.pos, t: team, price: amount };
+  // 입찰 이력을 낙찰 레코드에 박아 영속화한다 (구 Streamlit 판의 B6 결함 — 메모리에만 있었다)
+  if(bids && bids.length>1) rec.bids = bids;
+  t.picks.push({ i:pick.i, n:pick.p.n, pos:pick.p.pos, price:amount });
+  S.log.push(rec);
+  advanceNom();                       // 낙찰 1건 = 지명 1회 소비 → 다음 순번으로
+  recompute(); persist();
+  const q = teamPos(t);
+  const note = (q.doomed || (q.full && q.missing.length))
+    ? ` · ${t.name} ${q.missing.join("·")} 없음`      // 알림일 뿐 오류가 아니다
+    : "";
+  toast(`${pick.p.n} → ${t.name} $${amount}${note}`);
+  resetEntry(); render();
+  return true;
+}
+
+function cancelPick(li){
+  const e = S.log[li];
+  if(!e) return;
+  snap();
+  const t = S.teams[e.t];
+  const j = t.picks.findIndex(p=>p.i===e.i && p.n===e.n && p.price===e.price);
+  if(j>=0) t.picks.splice(j,1);
+  S.log.splice(li,1);
+  // 로테이션은 낙찰 건수에 종속되므로 한 칸 되돌린다 (만석 스킵은 nomAtPos 가 흡수)
+  retreatNom();
+  recompute(); persist();
+  toast(`철회: ${e.n} (${t.name} $${e.price})`, true);
+  render();
+}
+
+function undo(){
+  if(!undoStack.length) return toast("되돌릴 것이 없다", true);
+  redoStack.push(JSON.stringify(S));
+  S = JSON.parse(undoStack.pop());
+  recompute(); persist(); resetEntry(); render();
+  toast("되돌렸다");
+}
+function redo(){
+  if(!redoStack.length) return toast("다시 실행할 것이 없다", true);
+  undoStack.push(JSON.stringify(S));
+  S = JSON.parse(redoStack.pop());
+  recompute(); persist(); resetEntry(); render();
+  toast("다시 실행");
+}
+
+/* ══════════════ 입력 3단계 ══════════════
+   한 입력창에서 선수 → 팀 → 금액. 빈 상태의 Backspace는 한 단계 후퇴. */
+const $q = document.getElementById("q");
+function resetEntry(){ stage=0; pick=null; team=null; $q.value=""; }
+
+function teamMatches(qRaw){
+  const q = qRaw.trim();
+  const list = S.teams.map((t,i)=>({t,i,d:derive(t)})).filter(x=>x.t.name && !x.d.full);
+  if(!q) return list;
+  const k = q.replace(/\s+/g,"");
+  const pre = list.filter(x=>x.t.name.startsWith(k));
+  return pre.length ? pre : list.filter(x=>x.t.name.includes(k));
+}
+
+function currentResults(){
+  const q = $q.value;
+  if(S.mode==="live") return S.live ? [] : search(q, 8);
+  if(stage===0) return search(q, 8);
+  if(stage===1) return teamMatches(q);
+  return [];
+}
+
+function choose(n){
+  const r = currentResults();
+  if(stage===0){
+    if(!r.length){
+      if($q.value.trim()) addAdhoc($q.value.trim());
+      return;
+    }
+    pick = r[Math.min(n, r.length-1)];
+    stage = 1; $q.value=""; render(); return;
+  }
+  if(stage===1){
+    if(!r.length) return toast("입찰 가능한 팀이 없다", true);
+    team = r[Math.min(n, r.length-1)].i;
+    stage = 2; $q.value=""; render(); return;
+  }
+}
+
+/* 검색에 없는 선수 — 임시 등재 (RENEWAL R2) */
+function addAdhoc(name){
+  snap();
+  const p = { n:name, t:null, pos:[], pos_raw:null, kr:[], line:"임시 등재",
+              gp:null, w:-1, src:{stat:"adhoc",team:"adhoc",pos:"adhoc"} };
+  DB.players.push(p);
+  const e = { i: IDX.length, p, f: foldEn(name), last: foldEn(name).split(" ").pop(),
+              initials:"", kr:[], krCho:[] };
+  IDX.push(e);
+  S.adhoc.push(name);
+  persist();
+  pick = e; stage = 1; $q.value=""; render();
+  toast(`임시 등재: ${name}`);
+}
+
+/* ══════════════ 렌더 ══════════════ */
+const el = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+
+function render(){
+  // 상단
+  const n = S.log.length;
+  const spent = S.log.reduce((a,e)=>a+e.price,0);
+  const q = nomQueue(4);
+  el("queue").innerHTML = q.length
+    ? `<span class="qn">${esc(S.teams[q[0]].name)}</span>` +
+      (q.length>1 ? `<span class="qx">→ ${q.slice(1).map(i=>esc(S.teams[i].name)).join(" → ")}</span>` : "")
+    : `<span class="qx">종료</span>`;
+  el("tCnt").textContent = `${n} / ${TOTAL}`;
+  el("tSpent").textContent = `$${spent}`;
+  el("tAvg").textContent = n ? `$${(spent/n).toFixed(1)}` : "—";
+
+  renderInv();
+  renderLive();
+  renderStages();
+  renderResults();
+  renderCard();
+  renderBoard();
+  renderLog();
+}
+
+function renderLive(){
+  const box = el("live");
+  el("modeTag").className = S.mode==="live" ? "live" : "";
+  el("modeTag").innerHTML = `모드: ${S.mode==="live" ? "라이브 호가" : "빠른 기록"}` +
+    ` <span class="kb">Tab</span>`;
+  if(S.mode!=="live"){ box.classList.remove("on"); box.innerHTML=""; return; }
+  if(!S.live){
+    const nm = nominator();
+    box.innerHTML = `
+      <div class="lh">
+        <span class="ln" style="color:var(--dim)">지명 대기</span>
+        <span class="lt" style="color:var(--dim2);font-size:26px">⏱ ${CLOSE_SEC}s</span>
+      </div>
+      <div class="cur" style="color:var(--dim);font-size:13px">
+        ${nm!=null?`<i>${esc(S.teams[nm].name)}</i> 차례 — `:""}선수를 지명하면
+        자동 $1 입찰이 걸리고 ${CLOSE_SEC}초 타이머가 시작된다.
+      </div>`;
+    box.classList.add("on");
+    return;
+  }
+  const hi = liveHigh(), l = liveLeft();
+  const bidTxt = S.live.bids.slice().reverse().map(b=>
+    `<u>${esc(S.teams[b.t]?S.teams[b.t].name:"?")}</u> $${b.price}${b.auto?"(자동)":""}`).join("  ←  ");
+  box.innerHTML = `
+    <div class="lh">
+      <span class="ln">${esc(S.live.n)}</span>
+      <span class="lt ${l===0?"done":(l<=3?"warn":"")}">${l===0?"낙찰 대기":l}</span>
+    </div>
+    <div class="cur">현재가 <b>$${hi.price}</b> · <i>${esc(S.teams[hi.t]?S.teams[hi.t].name:"?")}</i>
+      <span style="color:var(--dim);font-size:12px">· 입찰 ${S.live.bids.length}건</span></div>
+    <div class="bids">${bidTxt}</div>`;
+  box.classList.add("on");
+}
+
+let lastInv = [];
+function renderInv(){
+  const V = validate();
+  lastInv = V;
+  // 배너는 장부 정확성만 말한다 = 진행자의 책임 범위. 정보 등급(I5)은 색을 바꾸지 않는다.
+  const hard = V.filter(v=>v.level==="err");
+  const errs = hard.filter(v=>!v.ok).length;
+  const warns = V.filter(v=>!v.ok && v.level==="warn").length;
+  const infos = V.filter(v=>!v.ok && v.level==="info").length;
+  const b = el("inv");
+  b.className = errs ? "err" : (warns ? "warn" : "ok");
+  b.textContent = (errs ? `장부 🔴 ${hard.length-errs}/${hard.length}`
+                : warns ? `장부 ⚠ ${hard.length}/${hard.length}`
+                : `장부 ✅ ${hard.length}/${hard.length}`)
+                + (infos ? ` · 포지션 ${infos}건` : "");
+}
+
+function renderIv(){
+  el("ivrows").innerHTML = lastInv.map(v=>`
+    <div class="ivrow ${v.ok?"ok":v.level}">
+      <span class="id">${v.id}</span>
+      <span class="nm">${esc(v.name)}</span>
+      <span class="st">${v.ok?"통과":({err:"위반",warn:"경고",info:"정보"})[v.level]}</span>
+      <span class="dt">${esc(v.detail)}</span>
+    </div>`).join("");
+  el("iv").classList.add("on");
+}
+
+function renderStages(){
+  const s = el("stages");
+  let h = "";
+  if(pick) h += `<span class="chip">${esc(pick.p.n)}</span>`;
+  if(team!=null) h += `<span class="chip b">${esc(S.teams[team].name)}</span>`;
+  h += `<span class="stagelabel">${["선수","팀","금액"][stage]}</span>`;
+  s.innerHTML = h;
+
+  if(S.mode==="live"){
+    const nm = nominator();
+    if(!S.live){
+      s.innerHTML = `<span class="stagelabel">지명 — ${nm!=null?esc(S.teams[nm].name)+" 차례":"종료"}</span>`;
+      $q.placeholder = "지명할 선수";
+      el("hint").innerHTML = `Enter 지명 · 지명 시 자동 $1 입찰이 걸린다`;
+    } else {
+      s.innerHTML = `<span class="chip">${esc(S.live.n)}</span>` +
+                    `<span class="stagelabel">입찰</span>`;
+      $q.placeholder = "병34";
+      const l = liveLeft();
+      el("hint").innerHTML = l===0
+        ? `<b>${CLOSE_SEC}초 경과 — 낙찰 대기.</b> 자동 낙찰하지 않는다. 아래 동작을 고르라.`
+        : `${CLOSE_SEC}초 무입찰이면 마감 · 새 입찰마다 타이머 리셋`;
+    }
+    $q.focus();
+    return;
+  }
+  $q.placeholder = stage===0 ? "선수 (한글 별칭 · 영문 · 초성)"
+                 : stage===1 ? "낙찰 팀"
+                 : "낙찰가";
+  const hint = el("hint");
+  if(stage===2 && team!=null){
+    const d = derive(S.teams[team]);
+    hint.innerHTML = `잔액 $${d.budget} · 남은 슬롯 ${d.left} · <b>최대입찰가 $${d.maxBid}</b> — 숫자 입력 후 Enter`;
+  } else if(stage===0){
+    hint.innerHTML = `숫자키 1–8 선택 · Enter 첫 항목 · Esc 초기화 · ` +
+      `<b>Tab</b> 라이브 호가 모드(${CLOSE_SEC}초 타이머)`;
+  } else {
+    hint.innerHTML = `숫자키로 팀 선택 · Enter 첫 항목 · Backspace 뒤로`;
+  }
+  $q.focus();
+}
+
+/* 13캣 성적 카드 — 지금 초점이 있는 선수(확정 전 후보 1위 또는 확정된 선수)를 보여준다.
+   리그 캣 순서를 그대로 따르고, TOV 만 낮을수록 좋은 항목이라 색으로 구분한다. */
+const CATS = [
+  ["PTS","PTS"], ["REB","REB"], ["OREB","OREB"], ["AST","AST"], ["STL","STL"],
+  ["BLK","BLK"], ["TOV","TOV"], ["3PM","3PM"], ["FG","FG%"], ["3P","3P%"],
+  ["FT","FT%"], ["AT","A/T"], ["DD","DD"], ["MPG","MPG"],
+];
+function fmtCat(k, v){
+  if(v===null || v===undefined) return "—";
+  if(k==="FG"||k==="3P"||k==="FT") return (v*100).toFixed(1);
+  if(k==="AT") return v.toFixed(2);
+  if(k==="DD") return String(Math.round(v));
+  if(k==="MPG") return v.toFixed(1);
+  return v.toFixed(1);
+}
+function renderCard(){
+  const box = el("card");
+  let e = pick;
+  if(!e && stage===0){
+    const r = currentResults();
+    if(r.length && r[0].p) e = r[0];
+  }
+  if(!e){ box.classList.remove("on"); box.innerHTML=""; return; }
+  const p = e.p, st = p.st || {};
+  const provText = {blend:"2시즌 GP가중 혼합", "2025-26":"2025-26 실적",
+                    "2024-25":"2024-25 실적 (2025-26 결장)", manual:"NBA 실적 없음",
+                    adhoc:"임시 등재"}[p.src ? p.src.stat : ""] || "";
+  box.innerHTML = `
+    <div class="ch">
+      <span class="cn">${esc(p.n)}</span>
+      ${p.kr.length?`<span class="ck">${esc(p.kr.join(" · "))}</span>`:""}
+      <span class="cm">${p.t?esc(p.t):"팀 미상"}${p.pos.length?" · "+p.pos.join("/"):""}${
+        st.GP!=null?` · ${fmtCat("MPG",st.GP)}G`:""}</span>
+      <span class="sp"></span>
+      ${p.ly!=null?`<span class="cmk">작년 낙찰 $${p.ly}</span>`:""}
+    </div>
+    <div class="cats">${CATS.map(([k,label])=>{
+      const v = st[k];
+      const cls = v===null||v===undefined ? "cat na" : (k==="TOV" ? "cat neg" : "cat");
+      return `<div class="${cls}"><u>${label}</u><b>${fmtCat(k,v)}</b></div>`;
+    }).join("")}</div>
+    ${provText?`<div class="cprov">${esc(provText)}</div>`:""}`;
+  box.classList.add("on");
+}
+
+function renderResults(){
+  const box = el("results");
+  const r = currentResults();
+
+  if(S.mode==="live" && S.live){
+    const hi = liveHigh();
+    const who = S.teams[hi.t] ? S.teams[hi.t].name : "?";
+    const pv = parseLiveBid($q.value);
+    box.innerHTML = `
+      <div class="acts">
+        <div class="act ${pv.empty?"":(pv.err?"bad":"go")}">
+          <span class="ak">${pv.empty?"팀+금액":"입력 중"}<b>⏎</b></span>
+          <span class="al">입찰</span>
+          <span class="av">${pv.empty
+              ? `<span class="dim">예: <b>병34</b> — 팀 접두사에 금액을 붙여 쓴다</span>`
+              : pv.err
+                ? `<span class="er">${esc(pv.err)}</span>`
+                : `<b>${esc(S.teams[pv.team].name)}</b> $${pv.amount} 로 입찰`}</span>
+        </div>
+        <div class="act ${pv.empty?"go":""}">
+          <span class="ak">빈 입력<b>⏎</b></span>
+          <span class="al">낙찰</span>
+          <span class="av"><b>${esc(who)}</b> 에게 <b>$${hi.price}</b> 확정
+            ${S.live.bids.length===1?`<span class="dim">(자동 $1 단독)</span>`:""}</span>
+        </div>
+        <div class="act">
+          <span class="ak"><b>Esc</b></span>
+          <span class="al">취소</span>
+          <span class="av"><span class="dim">낙찰 없이 지명 철회 — 선수는 풀로 돌아간다</span></span>
+        </div>
+      </div>`;
+    return;
+  }
+  if(stage===2){
+    box.innerHTML = `<div class="empty">낙찰가를 입력하고 Enter.</div>`;
+    return;
+  }
+  if(stage===0 || S.mode==="live"){
+    if(!$q.value.trim()){ box.innerHTML = `<div class="empty">선수 이름을 입력하면 후보가 나온다.</div>`; return; }
+    if(!r.length){
+      box.innerHTML = `<div class="row add" data-add="1"><span class="num">＋</span>
+        <span class="nm">임시 등재: ${esc($q.value.trim())}</span>
+        <span class="sp"></span><span class="meta">DB에 없는 선수 — Enter</span></div>`;
+      bindRows(); return;
+    }
+    box.innerHTML = r.map((e,ix)=>{
+      const p = e.p;
+      return `<div class="row" data-n="${ix}">
+        <span class="num">${ix+1}</span>
+        <span class="nm">${esc(p.n)}</span>
+        ${p.kr.length?`<span class="kr">${esc(p.kr[0])}</span>`:""}
+        <span class="meta">${p.t?esc(p.t):"—"}${p.pos.length?" "+p.pos.join("/"):""}</span>
+        <span class="sp"></span>
+        <span class="meta">${esc(p.line||"")}${p.st&&p.st.GP!=null?` · ${Math.round(p.st.GP)}G`:""}</span>
+        ${p.ly!=null?`<span class="mk">작년 $${p.ly}</span>`:""}
+      </div>`;
+    }).join("");
+    bindRows(); return;
+  }
+  // stage 1 — 팀
+  box.innerHTML = r.map((x,ix)=>`
+    <div class="row" data-n="${ix}">
+      <span class="num">${ix+1}</span>
+      <span class="nm">${esc(x.t.name)}</span>
+      <span class="sp"></span>
+      <span class="meta">잔액 $${x.d.budget} · ${x.t.picks.length}/${SLOTS}</span>
+      <span class="mk">최대 $${x.d.maxBid}</span>
+    </div>`).join("") || `<div class="empty">입찰 가능한 팀이 없다.</div>`;
+  bindRows();
+}
+function bindRows(){
+  el("results").querySelectorAll(".row").forEach(d=>{
+    d.onclick = ()=> d.dataset.add ? addAdhoc($q.value.trim()) : choose(+d.dataset.n);
+  });
+}
+
+/* 로스터 보드 — 팀별 9칸을 전부 드러낸다. 빈 칸도 보여야 진행 상황이 읽힌다.
+   기존 팀 카드는 뽑은 선수를 10px 흐린 글씨 한 줄에 잘라 넣어 사실상 안 보였다. */
+function shortName(full){
+  const parts = String(full).trim().split(/\s+/);
+  if(parts.length === 1) return parts[0];
+  const last = parts[parts.length-1];
+  // 접미사는 성이 아니다
+  if(/^(Jr\.?|Sr\.?|II|III|IV|V)$/i.test(last) && parts.length >= 3)
+    return parts[parts.length-2] + " " + last;
+  return last;
+}
+
+function renderBoard(){
+  const amt = stage===2 ? parseInt($q.value,10) : NaN;
+  const nomNow = nominator();
+  const lastPick = S.log.length ? S.log[S.log.length-1] : null;
+
+  el("board").innerHTML = S.teams.map((t,i)=>{
+    const d = derive(t);
+    const q = teamPos(t);
+    const cls = ["tb"];
+    if(!t.name) cls.push("unset");
+    if(team===i) cls.push("hi");
+    else if(!isNaN(amt) && amt>d.maxBid) cls.push("dim");
+    if(nomNow===i) cls.push("nomnow");
+
+    const flags = [];
+    if(t.name && q.missing.length)
+      flags.push(`<span class="${q.doomed||q.full?"bad":""}">${q.missing.join("·")}</span>`);
+    if(t.name && !d.full && d.maxBid<=1) flags.push(`<span class="dry">예산 소진</span>`);
+
+    const rows = [];
+    for(let k=0; k<SLOTS; k++){
+      const p = t.picks[k];
+      if(p){
+        const fresh = lastPick && lastPick.t===i && lastPick.n===p.n && lastPick.price===p.price;
+        rows.push(`<div class="sl${fresh?" fresh":""}"><u>${k+1}</u>` +
+          `<b title="${esc(p.n)}">${esc(shortName(p.n))}</b>` +
+          `<i>${(p.pos||[]).join("/")}</i><s>$${p.price}</s></div>`);
+      } else {
+        rows.push(`<div class="sl open"><u>${k+1}</u><b>—</b></div>`);
+      }
+    }
+
+    return `<div class="${cls.join(" ")}">
+      <div class="tbh">
+        <div class="n${t.name?"":" empty"}">${esc(t.name||`(${i+1}번 미정)`)}${
+          nomNow===i?'<i>지명</i>':''}</div>
+        <div class="b"><em>$${d.budget}</em>
+          <s>max $${d.maxBid} · ${t.picks.length}/${SLOTS}</s></div>
+        <div class="fl">${flags.join("")}</div>
+      </div>
+      <div class="slots">${rows.join("")}</div>
+    </div>`;
+  }).join("");
+}
+
+function renderLog(){
+  el("logn").textContent = `낙찰 기록 ${S.log.length}건`;
+  const rows = S.log.map((e,i)=>({e,i})).reverse();
+  el("log").innerHTML = rows.map(({e,i})=>`
+    <div class="lrow">
+      <span class="i">${i+1}</span>
+      <span class="nm">${esc(e.n)}</span>
+      <span class="tm">${esc(S.teams[e.t]?S.teams[e.t].name:"?")}</span>
+      <span class="pr">$${e.price}</span>
+      <span class="sp"></span>
+      <button data-c="${i}">취소</button>
+    </div>`).join("") || `<div class="empty">아직 없다.</div>`;
+  el("log").querySelectorAll("button[data-c]").forEach(b=>{
+    b.onclick = ()=> cancelPick(+b.dataset.c);
+  });
+}
+
+/* ══════════════ 키 처리 ══════════════ */
+$q.addEventListener("input", ()=>{
+  if(stage===2) $q.value = $q.value.replace(/[^0-9]/g,"");
+  renderResults(); renderCard(); renderBoard();
+  if(stage===2) renderStages();
+});
+
+document.addEventListener("keydown", e=>{
+  const mod = e.metaKey || e.ctrlKey;
+  if(mod && e.key.toLowerCase()==="z"){ e.preventDefault(); e.shiftKey?redo():undo(); return; }
+  if(el("hp").classList.contains("on")){
+    if(e.key==="Escape" || e.key==="?" || e.key==="F1"){ e.preventDefault(); closeHelp(); }
+    return;
+  }
+  if(e.key==="?" || e.key==="F1"){ e.preventDefault(); openHelp(); return; }
+  if(el("iv").classList.contains("on")){
+    if(e.key==="Escape"){ el("iv").classList.remove("on"); $q.focus(); }
+    return;
+  }
+  if(el("ov").classList.contains("on")){
+    if(e.key==="Escape") closeOv();
+    return;
+  }
+  if(e.key==="Tab"){ e.preventDefault(); toggleMode(); return; }
+
+  if(S.mode==="live"){
+    if(e.key==="Escape"){ e.preventDefault(); S.live ? liveCancel() : (resetEntry(), render()); return; }
+    if(e.key==="Enter"){
+      e.preventDefault();
+      if(!S.live){                       // 지명 단계
+        const r = currentResults();
+        if(!r.length){ if($q.value.trim()) addAdhocLive($q.value.trim()); return; }
+        liveOpen(r[0]); $q.value=""; render(); beep(520,90);
+      } else if($q.value.trim()===""){   // 빈 입력 = 낙찰
+        liveSell();
+      } else {                           // 입찰 파싱
+        const r = parseLiveBid($q.value);
+        if(r.err) return toast(r.err, true);
+        liveBid(r.team, r.amount);
+        $q.value = "";
+      }
+      return;
+    }
+    if(!S.live && /^[1-8]$/.test(e.key) && $q.value.trim()!==""){
+      e.preventDefault();
+      const r = currentResults();
+      const n = Math.min(+e.key-1, r.length-1);
+      if(r.length){ liveOpen(r[n]); $q.value=""; render(); beep(520,90); }
+      return;
+    }
+    if(document.activeElement!==$q) $q.focus();
+    return;
+  }
+
+  if(e.key==="Escape"){ e.preventDefault(); resetEntry(); render(); return; }
+  if(e.key==="Backspace" && $q.value===""){
+    e.preventDefault();
+    if(stage===2){ stage=1; team=null; }
+    else if(stage===1){ stage=0; pick=null; }
+    render(); return;
+  }
+  if(e.key==="Enter"){
+    e.preventDefault();
+    if(stage===2){
+      const v = parseInt($q.value,10);
+      if(isNaN(v)) return toast("금액을 입력하라", true);
+      commit(v);
+    } else choose(0);
+    return;
+  }
+  if(stage!==2 && /^[1-8]$/.test(e.key) && $q.value.trim()!==""){
+    e.preventDefault(); choose(+e.key-1); return;
+  }
+  if(document.activeElement!==$q) $q.focus();
+});
+
+function toggleMode(){
+  if(S.live && S.mode==="live")
+    return toast("진행 중인 호가를 먼저 낙찰하거나 취소하라", true);
+  S.mode = S.mode==="live" ? "fast" : "live";
+  S.live = null;
+  persist(); resetEntry(); render();
+  toast(S.mode==="live" ? `라이브 호가 모드 (${CLOSE_SEC}초 타이머)` : "빠른 기록 모드");
+}
+
+/* 라이브 모드에서 DB 에 없는 선수를 지명 */
+function addAdhocLive(name){
+  addAdhoc(name);
+  const e = IDX[IDX.length-1];
+  resetEntry();
+  liveOpen(e); render(); beep(520,90);
+}
+
+/* ══════════════ 팀 설정 / 세션 ══════════════ */
+let ovOrder = null;          // 오버레이에서 편집 중인 순서 (저장 전까지 S 에 반영하지 않는다)
+
+function openOv(){
+  normOrder();
+  ovOrder = S.order.slice();
+  el("tedits").innerHTML = S.teams.map((t,i)=>`
+    <label class="tedit"><span>${i+1}</span>
+      <input data-t="${i}" value="${esc(t.name)}" placeholder="이름"></label>`).join("");
+  el("ordText").value = "";
+  renderOrd();
+  el("ov").classList.add("on");
+  const f = el("tedits").querySelector("input"); if(f) f.focus();
+}
+
+function ovNames(){
+  return [...el("tedits").querySelectorAll("input")].map(i=>i.value.trim());
+}
+
+function renderOrd(){
+  const names = ovNames();
+  el("ordList").innerHTML = ovOrder.map((ti,pos)=>`
+    <div class="ordrow">
+      <span class="no">${pos+1}</span>
+      <span class="nm${names[ti]?"":" empty"}">${esc(names[ti] || `(${ti+1}번 미정)`)}</span>
+      <button data-up="${pos}" ${pos===0?"disabled":""}>↑</button>
+      <button data-dn="${pos}" ${pos===ovOrder.length-1?"disabled":""}>↓</button>
+    </div>`).join("");
+  el("ordList").querySelectorAll("button[data-up]").forEach(b=>b.onclick=()=>{
+    const i=+b.dataset.up; [ovOrder[i-1],ovOrder[i]]=[ovOrder[i],ovOrder[i-1]]; renderOrd();
+  });
+  el("ordList").querySelectorAll("button[data-dn]").forEach(b=>b.onclick=()=>{
+    const i=+b.dataset.dn; [ovOrder[i+1],ovOrder[i]]=[ovOrder[i],ovOrder[i+1]]; renderOrd();
+  });
+  const sel = el("ordPos");
+  sel.innerHTML = ovOrder.map((ti,pos)=>
+    `<option value="${pos}">${pos+1}. ${esc(names[ti]||`(${ti+1}번)`)}</option>`).join("");
+  sel.value = String(Math.min(S.nomPos, ovOrder.length-1));
+}
+
+/* 접두사 나열 → 순서. 추첨 결과를 말로 듣고 바로 치는 경로다. */
+function parseOrderText(text, names){
+  const toks = text.trim().split(/\s+/).filter(Boolean);
+  if(!toks.length) return {err:"입력이 비었다"};
+  const used = new Set(), out = [];
+  for(const tk of toks){
+    const hits = names.map((n,i)=>({n,i}))
+      .filter(x=>x.n && !used.has(x.i) && x.n.startsWith(tk));
+    const pool = hits.length ? hits
+      : names.map((n,i)=>({n,i})).filter(x=>x.n && !used.has(x.i) && x.n.includes(tk));
+    if(!pool.length)   return {err:`"${tk}" 에 맞는 팀이 없다`};
+    if(pool.length>1)  return {err:`"${tk}" 가 ${pool.map(x=>x.n).join("·")} 중 모호하다`};
+    used.add(pool[0].i); out.push(pool[0].i);
+  }
+  const missing = names.map((n,i)=>({n,i})).filter(x=>x.n && !used.has(x.i));
+  if(missing.length) return {err:`빠진 팀: ${missing.map(x=>x.n).join(", ")}`};
+  for(let i=0;i<NTEAM;i++) if(!used.has(i)) out.push(i);   // 이름 빈 팀은 뒤로
+  return {order:out};
+}
+function closeOv(){ el("ov").classList.remove("on"); $q.focus(); }
+
+function openHelp(){
+  el("hpSkip").checked = !!S.helpSkip;
+  el("hp").classList.add("on");
+}
+function closeHelp(){
+  S.helpSkip = el("hpSkip").checked;
+  S.helpSeen = true;
+  persist();
+  el("hp").classList.remove("on");
+  $q.focus();
+}
+el("bHelp").onclick = openHelp;
+el("hpClose").onclick = closeHelp;
+
+el("modeTag").onclick = toggleMode;
+el("inv").onclick = renderIv;
+el("ivClose").onclick = ()=>{ el("iv").classList.remove("on"); $q.focus(); };
+el("bTeams").onclick = openOv;
+el("ovCancel").onclick = closeOv;
+el("ordApply").onclick = ()=>{
+  const r = parseOrderText(el("ordText").value, ovNames());
+  if(r.err) return toast(r.err, true);
+  ovOrder = r.order; renderOrd();
+  toast("순서 적용 — 저장을 눌러야 확정된다");
+};
+el("ordReset").onclick = ()=>{ ovOrder = S_defaultOrder(); renderOrd(); };
+el("tedits").addEventListener("input", renderOrd);
+
+el("ovSave").onclick = ()=>{
+  const vals = ovNames();
+  const dup = vals.filter((v,i)=>v && vals.indexOf(v)!==i);
+  if(dup.length) return toast(`팀 이름 중복: ${dup[0]}`, true);
+  snap();
+  vals.forEach((v,i)=>{ S.teams[i].name = v; });
+  if(ovOrder) S.order = ovOrder.slice();
+  S.nomPos = +el("ordPos").value || 0;
+  normOrder(); persist(); closeOv(); render();
+  toast("팀 이름·지명 순서 저장");
+};
+el("ovReset").onclick = ()=>{
+  if(!confirm(`낙찰 ${S.log.length}건과 팀 로스터를 모두 지운다. 계속?`)) return;
+  snap(); S = blank(); recompute(); persist(); resetEntry(); render();
+  toast("초기화했다 — Ctrl+Z로 복구 가능", true);
+};
+el("bUndo").onclick = undo;
+el("bRedo").onclick = redo;
+
+/* 결과 CSV — 작년 파일과 같은 스키마로 낸다. 차년도 시장가 캘리브레이션이
+   `prior_auction_<season>/results.csv` 를 그대로 읽으므로 헤더·열순서·CRLF 를 맞춘다.
+   read_confidence 는 사진 판독 확신도였고, 이 툴은 직접 기록하므로 전부 high 다. */
+const CSV_HEADER = "manager,name_kr,name_en,price,read_confidence";
+function csvCell(v){
+  const t = String(v==null ? "" : v);
+  return /[",\r\n]/.test(t) ? '"' + t.replace(/"/g,'""') + '"' : t;
+}
+function resultsCsv(){
+  const rows = S.log.map(e=>{
+    const p = (IDX[e.i] && IDX[e.i].p) || null;
+    const kr = p && p.kr.length ? p.kr[0] : "";
+    return [S.teams[e.t] ? S.teams[e.t].name : "", kr, e.n, e.price, "high"]
+      .map(csvCell).join(",");
+  });
+  return CSV_HEADER + "\r\n" + rows.map(r=>r+"\r\n").join("");
+}
+function download(name, text, mime){
+  const blob = new Blob([text], {type: mime});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click(); URL.revokeObjectURL(a.href);
+}
+el("bCsv").onclick = ()=>{
+  if(!S.log.length) return toast("낙찰 기록이 없다", true);
+  download(`results_${S.log.length}picks.csv`, resultsCsv(), "text/csv;charset=utf-8");
+  toast(`결과 CSV ${S.log.length}건 (작년 스키마)`);
+};
+
+/* 세션 저장/불러오기 — 계획서 P3 항목이나, 기기 교체·크래시 대비로 P1에 당겨왔다 */
+el("bSave").onclick = ()=>{
+  const blob = new Blob([JSON.stringify(S,null,1)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `draft_session_${S.log.length}picks.json`;
+  a.click(); URL.revokeObjectURL(a.href);
+  toast("세션 파일 저장");
+};
+el("bLoad").onclick = ()=>{
+  const f = document.createElement("input");
+  f.type="file"; f.accept="application/json";
+  f.onchange = ()=>{
+    const file = f.files[0]; if(!file) return;
+    const r = new FileReader();
+    r.onload = ()=>{
+      try{
+        const o = JSON.parse(r.result);
+        if(!o || !(o.v>=1&&o.v<=3) || !Array.isArray(o.teams)) throw 0;
+        if(o.v===1){ o.nomIdx = o.nom!=null?(o.nom+1)%NTEAM:0; delete o.nom; o.v=2; }
+        if(o.v===2){ o.order=S_defaultOrder(); o.nomPos=o.nomIdx||0; delete o.nomIdx; o.v=3; }
+        snap(); S = o; recompute(); persist(); resetEntry(); render();
+        toast(`불러왔다 — 낙찰 ${S.log.length}건`);
+      }catch(_){ toast("세션 파일이 아니다", true); }
+    };
+    r.readAsText(file);
+  };
+  f.click();
+};
+
+let toastT = null;
+function toast(msg, bad){
+  const d = document.createElement("div");
+  d.className = "toast" + (bad?" bad":"");
+  d.textContent = msg;
+  document.body.appendChild(d);
+  clearTimeout(toastT);
+  setTimeout(()=>{ d.classList.add("off"); setTimeout(()=>d.remove(), 220); }, 1700);
+}
+
+restore(); normOrder(); recompute(); render(); startTicker();
+// 처음 여는 사람(진행자가 다른 사람일 수 있다)에게는 설명을 먼저 보여준다
+if(!S.helpSeen && !S.helpSkip) openHelp();
+window.__S = ()=>S;   // 리허설 스크립트용 훅
+</script>
