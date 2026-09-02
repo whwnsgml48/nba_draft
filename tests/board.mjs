@@ -45,13 +45,13 @@ ok("인원 표시", t.includes("1/9"), t.slice(0,200));
 ok("지명자 표시", A.html("board").includes("<i>지명</i>"));
 ok("지명 팀에 테두리", A.html("board").includes("nomnow"));
 
-console.log("── 만석 팀 ──");
+console.log("── 로스터가 꽉 찬 팀 ──");
 A.reset();
 for(let i=0;i<9;i++) put(A.DB.players[i].n, 2, 1);
 A.renderBoard(); h = A.html("board");
 const blocks = h.split('class="tb');
 const full = blocks.find(b=>b.includes("9/9"));
-ok("만석 팀 블록에 빈 칸 없음", full && !full.split('class="tb')[0].includes('sl open'),
+ok("로스터가 꽉 찬 팀 블록에 빈 칸 없음", full && !full.split('class="tb')[0].includes('sl open'),
    "빈 칸 남음");
 eq("전체 빈 칸 = 126-9", (h.match(/class="sl open"/g)||[]).length, 117);
 
@@ -80,7 +80,7 @@ A.q.value = "192";
 A.renderBoard();
 eq("192 는 상한이라 전부 가능", dimCount(), 0);
 
-console.log("── 126건 만석 후 ──");
+console.log("── 126건 완료 후 ──");
 A.reset();
 let pi = 0;
 for(let ti=0; ti<14; ti++) for(let k=0;k<9;k++){ const w=A.DB.players[pi].n; pi++; put(w, ti, 1); }

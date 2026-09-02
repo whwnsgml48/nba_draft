@@ -33,7 +33,7 @@ for(let i=0;i<14;i++){
 }
 ok("전 팀 I1 및 상한 공식 성립", allOk);
 
-console.log("── 126건 만석 시뮬레이션 ──");
+console.log("── 126건 로스터 완료 시뮬레이션 ──");
 A.reset();
 // 14팀 전원 9명씩 $1 로 채운다
 const pool = A.DB.players.map(p=>p.n);
@@ -50,14 +50,14 @@ for(let t=0;t<14;t++){
 }
 eq("126건 전부 낙찰", placed, 126);
 eq("로그 126건", A.S.log.length, 126);
-eq("전 팀 만석", A.S.teams.every(t=>t.picks.length===9), true);
+eq("전 팀 로스터 완료", A.S.teams.every(t=>t.picks.length===9), true);
 eq("전 팀 잔액 $191", A.S.teams.every(t=>A.derive(t).budget===191), true);
-eq("만석 후 최대입찰가 0", A.S.teams.every(t=>A.derive(t).maxBid===0), true);
+eq("완료 후 최대입찰가 0", A.S.teams.every(t=>A.derive(t).maxBid===0), true);
 const w2 = pool[pi]; A.pick = A.IDX.find(e=>e.p.n===w2); A.team=0; A.stage=2; A.commit(1);
 eq("127번째 거부", A.S.log.length, 126);
 eq("중복 낙찰 없음 (I4)", new Set(A.S.log.map(e=>e.i)).size, 126);
-eq("만석 후 지명자 없음 = 종료", A.nominator(), null);
-eq("만석 후 대기열 공백", A.nomQueue(4).length, 0);
+eq("완료 후 지명자 없음 = 종료", A.nominator(), null);
+eq("완료 후 대기열 공백", A.nomQueue(4).length, 0);
 
 console.log("── 순번 로테이션으로 126건 소화 ──");
 A.reset();

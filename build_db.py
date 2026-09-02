@@ -335,13 +335,14 @@ def main():
                     "이름·팀·포지션·13캣 성적·작년 낙찰가.",
         },
         "league": league,
-        # 2026-09-01 사용자 확정: 지명은 순번 로테이션. 형제 저장소의
-        # league_settings.json 은 "직전 낙찰자"로 남아 있으므로 여기서 덮어쓴다.
-        "rules_override": {
-            "nomination": "round_robin",
+        # 지명 규칙 — 형제 저장소 league_settings.json 이 정본이다(2026-09-02 정정 반영됨).
+        # 여기서는 그 값을 그대로 싣고, 거기에 없는 확정/미결 사항만 명시한다.
+        # `was` 같은 파생 필드는 두지 않는다 — 정본을 고치면 자기참조로 틀어진다.
+        "rules_resolved": {
+            "nomination": league["auction_rules"]["nominator"],
             "nomination_order": seed_teams,
-            "changed": "2026-09-01",
-            "was": league["auction_rules"]["nominator"],
+            "roster_full_skips": True,      # 9명 채운 팀은 로테이션에서 빠짐 (2026-09-02 확인)
+            "snake": None,                  # 리그 미결 — 툴 기본값 false, 화면에서 토글
         },
         "seed_teams": seed_teams,
         "players": players,

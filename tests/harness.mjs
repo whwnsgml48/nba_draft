@@ -61,7 +61,7 @@ export function load(file = "console.html"){
   const api = vm.runInContext(`({
     search, derive, commit, cancelPick, undo, redo, choose, addAdhoc,
     resetEntry, render, recompute, blank, foldEn, choseong,
-    nominator, nomQueue, advanceNom, retreatNom, canNominate, nomAtPos,
+    nominator, nomQueue, advanceNom, retreatNom, canNominate, nomAtPos, stepPos,
     normOrder, S_defaultOrder, renderCard, renderBoard, shortName, CATS, fmtCat,
     validate, teamPos, maxPosMatch, replayI3, SLOT_POS, renderInv, parseOrderText,
     liveOpen, liveBid, liveSell, liveCancel, liveHigh, liveLeft, toggleMode,
@@ -74,6 +74,8 @@ export function load(file = "console.html"){
     get team(){return team}, set team(v){team=v},
     get taken(){return taken},
     get nomPos(){return S.nomPos}, set nomPos(v){S.nomPos=v},
+    get nomDir(){return S.nomDir}, set nomDir(v){S.nomDir=v},
+    get snake(){return S.snake}, set snake(v){S.snake=v},
     IDX, DB, TOTAL, SLOTS, BUDGET, NTEAM,
     q: document.getElementById("q"),
   })`, sandbox);

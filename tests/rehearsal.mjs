@@ -96,7 +96,7 @@ for(const id of ["I1","I2","I3","I4"]) ok(`${id} 통과`, V[id].ok, V[id].detail
 ok("I3 는 순서 독립 — 어떤 순서로도 상한 위반이 없다", V.I3.ok, V.I3.detail);
 console.log(`  (I5 포지션: ${V.I5.ok?"충족":"미충족 — "+V.I5.detail.slice(0,80)})`);
 
-console.log("\n── 만석 후 동작 ──");
+console.log("\n── 전 팀 완료 후 동작 ──");
 eq("지명자 없음 = 종료", A.nominator(), null);
 eq("대기열 공백", A.nomQueue(4).length, 0);
 const extra = A.IDX.find(e=>!A.taken.has(e.i));

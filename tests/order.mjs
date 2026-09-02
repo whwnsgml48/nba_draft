@@ -89,4 +89,60 @@ const r8 = A.parseOrderText("병 준 진 경 원 윤 단 지 두 수 철 정 강
 eq("13개만으로 성공", r8.err, undefined);
 eq("빈 팀은 마지막", r8.order[13], 13);
 
+console.log("── 스네이크 (2026-09-02 리그 미결 · 양쪽 지원) ──");
+A.reset();
+eq("기본은 단순 순환", A.S.snake, false);
+eq("기본 방향", A.S.nomDir, 1);
+
+// 단순 순환: 1→14, 다시 1
+A.reset();
+let seen = [];
+for(let i=0;i<16;i++){ seen.push(A.nominator()); A.advanceNom(); }
+eq("단순 순환 14바퀴 후 처음으로", seen.slice(0,14).concat(seen[14],seen[15]).slice(14), [0,1]);
+eq("단순 순환은 0..13 순서", seen.slice(0,14), [...Array(14).keys()]);
+
+// 스네이크: 1→14, 14→1, …  양 끝은 연속 두 번
+A.reset(); A.snake = true; A.nomDir = 1; A.nomPos = 0;
+seen = [];
+for(let i=0;i<30;i++){ seen.push(A.nominator()); A.advanceNom(); }
+eq("1라운드 정방향", seen.slice(0,14), [...Array(14).keys()]);
+eq("13번(끝)이 연속 두 번", [seen[13], seen[14]], [13, 13]);
+eq("2라운드 역방향", seen.slice(14,28), [...Array(14).keys()].reverse());
+eq("0번(끝)이 연속 두 번", [seen[27], seen[28]], [0, 0]);
+eq("3라운드 다시 정방향", seen[29], 1);
+
+console.log("── 스네이크에서도 다 채운 팀은 빠진다 ──");
+A.reset(); A.snake = true; A.nomDir = 1; A.nomPos = 0;
+for(let i=0;i<9;i++){ const w=A.DB.players[i].n; A.pick=A.IDX.find(e=>e.p.n===w); A.team=3; A.stage=2; A.commit(1); }
+eq("3번 팀 로스터 완료", A.S.teams[3].picks.length, 9);
+A.nomPos = 0; A.nomDir = 1;
+eq("대기열에서 3번 제외", A.nomQueue(5), [0,1,2,4,5]);
+
+console.log("── 커서 이동 규칙 ──");
+A.reset();
+A.snake = false;
+eq("단순: 끝에서 랩", A.stepPos(13, 1), {pos:0, dir:1});
+eq("단순: 앞에서 랩", A.stepPos(0, -1), {pos:13, dir:-1});
+A.snake = true;
+eq("스네이크: 끝에서 방향 반전", A.stepPos(13, 1), {pos:13, dir:-1});
+eq("스네이크: 앞에서 방향 반전", A.stepPos(0, -1), {pos:0, dir:1});
+eq("스네이크: 중간은 그대로", A.stepPos(5, 1), {pos:6, dir:1});
+
+console.log("── 두 방식 모두 126건을 소화한다 ──");
+for(const sn of [false, true]){
+  A.reset(); A.snake = sn; A.nomDir = 1; A.nomPos = 0;
+  const counts = new Array(14).fill(0);
+  let pj = 0, ok126 = true;
+  for(let k=0;k<126;k++){
+    const nom = A.nominator();
+    if(nom===null){ ok126 = false; break; }
+    counts[nom]++;
+    const w = A.DB.players[pj].n; pj++;
+    A.pick = A.IDX.find(e=>e.p.n===w); A.team = nom; A.stage = 2; A.commit(1);
+  }
+  eq(`${sn?"스네이크":"단순"}: 126건 전부 지명자 존재`, ok126, true);
+  eq(`${sn?"스네이크":"단순"}: 전 팀 정확히 9회`, counts.every(c=>c===9), true);
+}
+
+
 summary();

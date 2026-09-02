@@ -84,25 +84,25 @@ const flex = [{pos:["PG","SG"]},{pos:["SG"]},{pos:["PF","C"]},{pos:["C"]},{pos:[
 eq("교차 배정 필요 → 5슬롯", A.maxPosMatch(flex).size, 5);
 eq("빈 포지션 선수는 어떤 슬롯도 못 채움", A.maxPosMatch([{pos:[]}]).size, 0);
 
-// 가드만 9명 → 만석인데 SF/PF/C 없음
+// 가드만 9명 → 로스터가 찼는데 SF/PF/C 없음
 A.reset();
 const guards = A.DB.players.filter(p=>p.pos.every(x=>x==="PG"||x==="SG")).slice(0,9);
 eq("가드 9명 확보", guards.length, 9);
 guards.forEach(p=>commitBy(p.n, 6, 1));
-eq("만석", A.S.teams[6].picks.length, 9);
+eq("로스터 완료", A.S.teams[6].picks.length, 9);
 eq("I5 위반", V().I5.ok, false);
 ok("부족 포지션 지목", ["SF","PF","C"].every(x=>V().I5.detail.includes(x)), V().I5.detail);
 eq("I5 는 정보 등급", A.validate().find(v=>v.id==="I5").level, "info");
 eq("경고여도 I1~I4 는 정상", ["I1","I2","I3","I4"].every(k=>V()[k].ok), true);
 
-// 만석 전에도 "이미 불가능"이면 경고
+// 로스터 완료 전에도 "이미 불가능"이면 경고
 A.reset();
 const g2 = A.DB.players.filter(p=>p.pos.every(x=>x==="PG"||x==="SG")).slice(0,7);
 g2.forEach(p=>commitBy(p.n, 7, 1));
 const q = A.teamPos(A.S.teams[7]);
 eq("가드 7명 · 남은 슬롯 2", [q.size, q.left], [2, 2]);
 eq("2+2 < 5 → 이미 불가능", q.doomed, true);
-eq("만석 전에도 경고", V().I5.ok, false);
+eq("로스터 완료 전에도 경고", V().I5.ok, false);
 
 // 포지션 낙찰은 절대 차단하지 않는다 (라이브 진행 중 오판 방지)
 A.reset();

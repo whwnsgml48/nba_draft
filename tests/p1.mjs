@@ -100,14 +100,14 @@ for(let i=0;i<14;i++) commitBy(A.DB.players[i].n, i, 1);
 eq("14건 후 1번으로 회귀", tn(A.nominator()), "준희");
 eq("전 팀 1명씩", A.S.teams.every(t=>t.picks.length===1), true);
 
-// 만석 팀은 건너뛴다
+// 로스터가 꽉 찬 팀은 건너뛴다
 A.reset();
 for(let s2=0;s2<9;s2++){ const w=A.DB.players[100+s2].n; commitBy(w, 1, 1); }
-eq("정명 만석", A.S.teams[1].picks.length, 9);
+eq("정명 로스터 꽉 찼음", A.S.teams[1].picks.length, 9);
 A.nomPos = 0;
-eq("만석 팀 스킵", A.nomQueue(3).map(tn), ["준희","단열","경찬"]);
+eq("꽉 찬 팀 제외", A.nomQueue(3).map(tn), ["준희","단열","경찬"]);
 A.nomPos = 1;
-eq("만석 팀에서 시작해도 스킵", tn(A.nominator()), "단열");
+eq("꽉 찬 팀에서 시작해도 제외", tn(A.nominator()), "단열");
 
 // 이름 빈 팀도 건너뛴다
 A.reset();
